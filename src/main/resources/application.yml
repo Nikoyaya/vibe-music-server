@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: vibe-music-server
+
+  datasource:
