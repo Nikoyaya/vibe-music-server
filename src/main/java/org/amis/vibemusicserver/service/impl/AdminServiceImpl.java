@@ -127,17 +127,34 @@ public class AdminServiceImpl extends ServiceImpl<AdminMapper, Admin> implements
      */
     @Override
     public Result logout(String token) {
-        // 从Redis中删除token，返回删除操作的结果（true表示删除成功，false表示删除失败）
-        Boolean deleteResult = stringRedisTemplate.delete(token);
+        log.info("token<UNK>: {}", token);
 
-        // 判断删除结果
-        if (deleteResult) {
-            // 如果删除成功，记录成功日志并返回成功结果
-            log.info("token从Redis删除成功，登出成功");
-            return Result.success(MessageConstant.LOGOUT + MessageConstant.SUCCESS);
-        } else {
-            // 如果删除失败，记录失败日志并返回失败结果
-            log.warn("token从Redis删除失败，登出失败");
+        try {
+            // 解析token获取claims
+            Map<String, Object> claims = JwtUtil.parseToken(token);
+
+            // 从claims中获取用户名和adminId
+            String username = (String) claims.get(JwtClaimsConstant.USERNAME);
+            Integer adminId = (Integer) claims.get(JwtClaimsConstant.ADMIN_ID);
+
+            // 构建正确的Redis key（与登录时存储的key格式一致）
+            String redisKey = username + "(" + adminId + ")";
+
+            // 从Redis中删除token
+            Boolean deleteResult = stringRedisTemplate.delete(redisKey);
+
+            // 判断删除结果
+            if (deleteResult) {
+                // 如果删除成功，记录成功日志并返回成功结果
+                log.info("token从Redis删除成功，登出成功");
+                return Result.success(MessageConstant.LOGOUT + MessageConstant.SUCCESS);
+            } else {
+                // 如果删除失败，记录失败日志并返回失败结果
+                log.warn("token从Redis删除失败，登出失败");
+                return Result.error(MessageConstant.LOGOUT + MessageConstant.FAILED);
+            }
+        } catch (Exception e) {
+            log.error("解析token失败，登出失败", e);
             return Result.error(MessageConstant.LOGOUT + MessageConstant.FAILED);
         }
     }
