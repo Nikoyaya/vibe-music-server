@@ -71,7 +71,6 @@ public class AdminController {
      */
     @PostMapping("/logout")
     public Result logout(@RequestHeader("Authorization") String token) {
-        log.info("User logout request received");
         return adminService.logout(token);
     }
 
