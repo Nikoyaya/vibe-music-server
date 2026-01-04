@@ -81,8 +81,6 @@ public class AdminServiceImpl extends ServiceImpl<AdminMapper, Admin> implements
      */
     @Override
     public Result login(AdminDTO adminDTO) {
-        log.info("管理员登录尝试，username: {}", adminDTO.getUsername());
-
         // 根据用户名查询管理员信息
         Admin admin = adminMapper.selectOne(
                 new QueryWrapper<Admin>()
@@ -107,7 +105,8 @@ public class AdminServiceImpl extends ServiceImpl<AdminMapper, Admin> implements
             log.info("token生成，admin ID: {}", admin.getAdminId());
 
             // 将token存入Redis，设置6小时过期
-            stringRedisTemplate.opsForValue().set(token, token, 6, TimeUnit.HOURS);
+            // 注意：这里的key使用了用户名和adminId的组合，确保唯一性(这个key可以自己修改，只是我调试方便这样设计而已，也可以直接用token为key也行)
+            stringRedisTemplate.opsForValue().set(admin.getUsername() + "(" + admin.getAdminId() + ")", token, 6, TimeUnit.HOURS);
             log.info("Token stored in Redis with 6 hours expiration");
 
             // 返回成功结果和token
