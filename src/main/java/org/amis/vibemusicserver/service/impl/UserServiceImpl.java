@@ -3,13 +3,17 @@ package org.amis.vibemusicserver.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
+import org.amis.vibemusicserver.constant.JwtClaimsConstant;
 import org.amis.vibemusicserver.constant.MessageConstant;
+import org.amis.vibemusicserver.enumeration.RoleEnum;
 import org.amis.vibemusicserver.enumeration.UserStatusEnum;
 import org.amis.vibemusicserver.mapper.UserMapper;
+import org.amis.vibemusicserver.model.dto.UserLoginDTO;
 import org.amis.vibemusicserver.model.dto.UserRegisterDTO;
 import org.amis.vibemusicserver.model.entity.User;
 import org.amis.vibemusicserver.result.Result;
 import org.amis.vibemusicserver.service.IUserService;
+import org.amis.vibemusicserver.utils.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -17,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -123,6 +128,50 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
         log.info("用户注册成功: {}", userRegisterDTO.getUsername());
         return Result.success(MessageConstant.REGISTER + MessageConstant.SUCCESS);
+    }
+
+    @Override
+    public Result login(UserLoginDTO userLoginDTO) {
+        // 根据邮箱查询用户
+        User user = userMapper.selectOne(
+                new QueryWrapper<User>()
+                        .eq("email", userLoginDTO.getEmail()));
+
+        // 检查用户是否存在
+        if (user == null) {
+            log.warn("用户不存在: {}", userLoginDTO.getEmail());
+            return Result.error(MessageConstant.LOGIN + MessageConstant.ERROR);
+        }
+
+        // 检查用户状态是否被禁用
+        if (user.getUserStatus() != UserStatusEnum.Enable) {
+            log.warn("用户: {}，已被禁用", userLoginDTO.getEmail());
+            return Result.error(MessageConstant.LOGIN + MessageConstant.ERROR + "," + MessageConstant.ACCOUNT_LOCKED);
+        }
+
+        // 验证密码（MD5加密比较）
+        boolean passwordEquals = DigestUtils.md5DigestAsHex(user.getPassword().getBytes()).equals(user.getPassword());
+        if (passwordEquals) {
+            log.info("用户登录成功: {}", userLoginDTO.getEmail());
+            // 创建JWT的claims（声明）
+            HashMap<String, Object> claims = new HashMap<>();
+            claims.put(JwtClaimsConstant.ROLE, RoleEnum.USER.getRole());
+            claims.put(JwtClaimsConstant.USER_ID, user.getUserId());
+            claims.put(JwtClaimsConstant.USERNAME, user.getUsername());
+            claims.put(JwtClaimsConstant.EMAIL, user.getEmail());
+
+            // 生成JWT token
+            String token = JwtUtil.generateToken(claims);
+            log.info("token生成，user ID: {}", user.getUserId());
+
+            // 将token存入Redis，设置6小时过期
+            // 注意：这里的key使用了用户名和userId的组合，确保唯一性(这个key可以自己修改，只是我调试方便这样设计而已，也可以直接用token为key也行)
+            stringRedisTemplate.opsForValue().set(user.getUsername() + "(" + user.getUserId() + ")", token, 6, TimeUnit.HOURS);
+            log.info("Token stored in Redis with 6 hours expiration");
+            return Result.success(MessageConstant.LOGIN + MessageConstant.SUCCESS, token);
+        }
+        // 密码错误返回错误信息
+        return Result.error(MessageConstant.PASSWORD + MessageConstant.ERROR);
     }
 }
 

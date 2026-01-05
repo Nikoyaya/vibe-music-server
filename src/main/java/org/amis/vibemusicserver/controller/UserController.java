@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import lombok.extern.slf4j.Slf4j;
 import org.amis.vibemusicserver.constant.MessageConstant;
+import org.amis.vibemusicserver.model.dto.UserLoginDTO;
 import org.amis.vibemusicserver.model.dto.UserRegisterDTO;
 import org.amis.vibemusicserver.model.dto.VerificationCodeDTO;
 import org.amis.vibemusicserver.result.Result;
@@ -78,11 +79,19 @@ public class UserController {
     }
 
     /**
-     * 用户登录
+     * 登录
+     *
+     * @param userLoginDTO  用户登录信息
+     * @param bindingResult 绑定结果
+     * @return 结果
      */
     @PostMapping("/login")
-    public Result login() {
-        return null;
+    public Result login(@RequestBody @Valid UserLoginDTO userLoginDTO, BindingResult bindingResult) {
+        String errorMessage = BindingResultUtil.handleBindingResultErrors(bindingResult);
+        if (bindingResult.hasErrors()) {
+            return Result.error(errorMessage);
+        }
+        return userService.login(userLoginDTO);
     }
 
     /**

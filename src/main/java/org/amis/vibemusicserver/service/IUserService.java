@@ -1,6 +1,7 @@
 package org.amis.vibemusicserver.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import org.amis.vibemusicserver.model.dto.UserLoginDTO;
 import org.amis.vibemusicserver.model.dto.UserRegisterDTO;
 import org.amis.vibemusicserver.model.entity.User;
 import org.amis.vibemusicserver.result.Result;
@@ -13,9 +14,9 @@ public interface IUserService extends IService<User> {
     // 用户注册
     Result register(UserRegisterDTO userRegisterDTO);
 
-//    // 用户登录
-//    Result login(UserLoginDTO userLoginDTO);
-//
+    // 用户登录
+    Result login(UserLoginDTO userLoginDTO);
+
 //    // 用户信息
 //    Result<UserVO> userInfo();
 //
