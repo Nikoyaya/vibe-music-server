@@ -28,7 +28,7 @@ public class ExceptionLogAspect {
             // 异常处理流程：当被拦截方法抛出异常时执行
             if (joinPoint.getSignature() != null) {
                 // 记录错误日志，包含方法签名、参数列表和异常信息
-                log.error("Exception in method: {} with args: {}",
+                log.error("异常方法: {} ，异常参数: {}",
                         joinPoint.getSignature().toShortString(),  // 获取方法简短签名
                         joinPoint.getArgs() != null ? Arrays.toString(joinPoint.getArgs()) : "null",  // 获取方法参数，若为null则显示"null"
                         t);  // 异常对象
