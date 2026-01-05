@@ -130,6 +130,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         return Result.success(MessageConstant.REGISTER + MessageConstant.SUCCESS);
     }
 
+    /**
+     * 用户登录
+     *
+     * @param userLoginDTO 用户登录信息
+     * @return 结果
+     */
     @Override
     public Result login(UserLoginDTO userLoginDTO) {
         // 根据邮箱查询用户
