@@ -46,7 +46,7 @@ public class UserController {
     @PostMapping("/verifyVerificationCode")
     public Result verifyVerificationCode(@RequestBody VerificationCodeDTO verificationCodeDTO) {
         // 验证验证码是否正确
-        boolean isCodeValid = userService.verifyVerificationCode(verificationCodeDTO.getEmail(), verificationCodeDTO.getCode());
+        boolean isCodeValid = userService.verifyVerificationCode(verificationCodeDTO.getEmail(), verificationCodeDTO.getVerificationCode());
         if (!isCodeValid) {
             return Result.error(MessageConstant.VERIFICATION_CODE + MessageConstant.INVALID);
         }
