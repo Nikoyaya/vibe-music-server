@@ -127,7 +127,7 @@ public class AdminServiceImpl extends ServiceImpl<AdminMapper, Admin> implements
      */
     @Override
     public Result logout(String token) {
-        log.info("token<UNK>: {}", token);
+        log.info("token: {}", token);
 
         try {
             // 解析token获取claims
