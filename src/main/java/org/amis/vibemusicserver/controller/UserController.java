@@ -2,11 +2,13 @@ package org.amis.vibemusicserver.controller;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
+import lombok.extern.slf4j.Slf4j;
 import org.amis.vibemusicserver.constant.MessageConstant;
 import org.amis.vibemusicserver.model.dto.UserRegisterDTO;
 import org.amis.vibemusicserver.model.dto.VerificationCodeDTO;
 import org.amis.vibemusicserver.result.Result;
 import org.amis.vibemusicserver.service.IUserService;
+import org.amis.vibemusicserver.utils.BindingResultUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
@@ -37,6 +39,7 @@ public class UserController {
 
     /**
      * 验证邮箱验证码（仅用作开发调试）
+     *
      * @param verificationCodeDTO 验证码信息
      *                            email: 邮箱
      *                            code: 验证码
@@ -44,7 +47,7 @@ public class UserController {
      * @return 验证结果
      */
     @PostMapping("/verifyVerificationCode")
-    public Result verifyVerificationCode(@RequestBody VerificationCodeDTO verificationCodeDTO) {
+    public Result verifyVerificationCode(@RequestBody @Valid VerificationCodeDTO verificationCodeDTO) {
         // 验证验证码是否正确
         boolean isCodeValid = userService.verifyVerificationCode(verificationCodeDTO.getEmail(), verificationCodeDTO.getVerificationCode());
         if (!isCodeValid) {
@@ -62,7 +65,16 @@ public class UserController {
      */
     @PostMapping("/register")
     public Result register(@RequestBody @Valid UserRegisterDTO userRegisterDTO, BindingResult bindingResult) {
-        return null;
+        String errorMessage = BindingResultUtil.handleBindingResultErrors(bindingResult);
+        if (bindingResult.hasErrors()) {
+            return Result.error(errorMessage);
+        }
+
+        Boolean isCodeValid = userService.verifyVerificationCode(userRegisterDTO.getEmail(), userRegisterDTO.getVerificationCode());
+        if (!isCodeValid) {
+            return Result.error(MessageConstant.VERIFICATION_CODE + MessageConstant.INVALID);
+        }
+        return Result.success(userService.register(userRegisterDTO));
     }
 
     /**
