@@ -1,0 +1,79 @@
+spring:
+  # 配置数据源
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://your-mysql-host:3306/your-database?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC
+    username: your-mysql-username
+    password: "your-mysql-password"
+    type: com.alibaba.druid.pool.DruidDataSource
+
+  # Redis服务连接配置
+  data:
+    redis:
+      database: 1
+      host: your-redis-host
+      port: 6379
+      password: your-redis-password
+
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
+  # Redis缓存有效期配置
+  cache:
+    redis:
+      time-to-live: 600000
+
+  # 配置邮件服务
+  mail:
+    host: smtp.your-email-provider.com
+    username: your-email@example.com
+    password: your-email-password
+    protocol: smtp
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          ssl:
+            enable: true
+          socketFactory:
+            port: 465
+            class: javax.net.ssl.SSLSocketFactory
+          connectiontimeout: 5000
+          timeout: 3000
+          writetimeout: 5000
+
+# 配置 mybatis-plus
+mybatis-plus:
+  type-aliases-package: org.amis.pojo
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      table-prefix: tb_
+
+# 定义角色和路径权限的映射关系
+role-path-permissions:
+  permissions:
+    ROLE_ADMIN:
+      - "/admin/"
+    ROLE_USER:
+      - "/user/"
+      - "/playlist/"
+      - "/artist/"
+      - "/song/"
+      - "/favorite/"
+      - "/comment/"
+      - "/banner/"
+      - "/feedback/"
+
+minio:
+  endpoint: http://your-minio-host:9000
+  accessKey: "your-minio-access-key"
+  secretKey: "your-minio-secret-key"
+  bucket: your-bucket-name
