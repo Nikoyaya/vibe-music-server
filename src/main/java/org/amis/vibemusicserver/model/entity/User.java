@@ -1,5 +1,6 @@
 package org.amis.vibemusicserver.model.entity;
 
+import com.baomidou.mybatisplus.annotation.EnumValue;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -36,7 +37,7 @@ public class User implements Serializable {
      * 用户 id
      */
     @TableId(value = "id", type = IdType.AUTO)
-    private Long userId;
+    private Long id;
 
     /**
      * 用户名

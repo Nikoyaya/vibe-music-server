@@ -96,10 +96,13 @@ public class UserController {
 
     /**
      * 用户登出
+     *
+     * @param token 认证token
+     * @return 结果
      */
     @RequestMapping("/logout")
-    public Result logout() {
-        return null;
+    public Result logout(@RequestHeader("Authorization") String token) {
+        return userService.logout(token);
     }
 }
 

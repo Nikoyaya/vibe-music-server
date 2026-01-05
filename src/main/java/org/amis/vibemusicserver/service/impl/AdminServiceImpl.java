@@ -131,14 +131,7 @@ public class AdminServiceImpl extends ServiceImpl<AdminMapper, Admin> implements
 
         try {
             // 解析token获取claims
-            Map<String, Object> claims = JwtUtil.parseToken(token);
-
-            // 从claims中获取用户名和adminId
-            String username = (String) claims.get(JwtClaimsConstant.USERNAME);
-            Integer adminId = (Integer) claims.get(JwtClaimsConstant.ADMIN_ID);
-
-            // 构建正确的Redis key（与登录时存储的key格式一致）
-            String redisKey = username + "(" + adminId + ")";
+            String redisKey = JwtUtil.getRedisKeyByToken(RoleEnum.ADMIN.getRole(), token);
 
             // 从Redis中删除token
             Boolean deleteResult = stringRedisTemplate.delete(redisKey);
@@ -158,5 +151,6 @@ public class AdminServiceImpl extends ServiceImpl<AdminMapper, Admin> implements
             return Result.error(MessageConstant.LOGOUT + MessageConstant.FAILED);
         }
     }
+
 
 }

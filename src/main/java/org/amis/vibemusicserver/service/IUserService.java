@@ -31,9 +31,9 @@ public interface IUserService extends IService<User> {
 //
 //    // 重置用户密码
 //    Result resetUserPassword(UserResetPasswordDTO userResetPasswordDTO);
-//
-//    // 退出登录
-//    Result logout(String token);
+
+    // 退出登录
+    Result logout(String token);
 //
 //    // 注销账号
 //    Result deleteAccount();

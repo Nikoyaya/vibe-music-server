@@ -1,5 +1,6 @@
 package org.amis.vibemusicserver.enumeration;
 
+import com.baomidou.mybatisplus.annotation.EnumValue;
 import lombok.Getter;
 
 /**
@@ -15,12 +16,13 @@ public enum UserStatusEnum {
     /**
      * 用户启用状态
      */
-    Enable(0, "启用"),
+    ENABLE(0, "启用"),
     /**
      * 用户未禁用状态
      */
     DISABLE(1, "禁用");
 
+    @EnumValue
     private final Integer code;
     private final String userStatus;
 

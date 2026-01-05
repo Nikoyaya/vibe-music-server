@@ -29,8 +29,8 @@ import java.util.concurrent.TimeUnit;
  * @description : 用户服务实现类
  * @createDate : 2026/1/5 1:08
  */
-@Service
 @Slf4j
+@Service
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IUserService {
 
     @Autowired
@@ -112,14 +112,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
         // 对密码进行MD5加密
         String passwordMD5 = DigestUtils.md5DigestAsHex(userRegisterDTO.getPassword().getBytes());
+
+        // 创建用户对象并设置相关属性
         User user = new User();
-        // 设置用户信息
         user.setUsername(userRegisterDTO.getUsername())
-                .setEmail(userRegisterDTO.getEmail())
                 .setPassword(passwordMD5)
+                .setEmail(userRegisterDTO.getEmail())
                 .setCreateTime(LocalDateTime.now())
                 .setUpdateTime(LocalDateTime.now())
-                .setUserStatus(UserStatusEnum.Enable);
+                .setUserStatus(UserStatusEnum.ENABLE);
 
         // 插入用户数据到数据库
         if (userMapper.insert(user) == 0) {
@@ -150,34 +151,68 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
 
         // 检查用户状态是否被禁用
-        if (user.getUserStatus() != UserStatusEnum.Enable) {
+        if (user.getUserStatus() != UserStatusEnum.ENABLE) {
             log.warn("用户: {}，已被禁用", userLoginDTO.getEmail());
             return Result.error(MessageConstant.LOGIN + MessageConstant.ERROR + "," + MessageConstant.ACCOUNT_LOCKED);
         }
 
         // 验证密码（MD5加密比较）
-        boolean passwordEquals = DigestUtils.md5DigestAsHex(user.getPassword().getBytes()).equals(user.getPassword());
+        boolean passwordEquals = DigestUtils.md5DigestAsHex(userLoginDTO.getPassword().getBytes()).equals(user.getPassword());
         if (passwordEquals) {
             log.info("用户登录成功: {}", userLoginDTO.getEmail());
             // 创建JWT的claims（声明）
             HashMap<String, Object> claims = new HashMap<>();
             claims.put(JwtClaimsConstant.ROLE, RoleEnum.USER.getRole());
-            claims.put(JwtClaimsConstant.USER_ID, user.getUserId());
+            claims.put(JwtClaimsConstant.USER_ID, user.getId());
             claims.put(JwtClaimsConstant.USERNAME, user.getUsername());
             claims.put(JwtClaimsConstant.EMAIL, user.getEmail());
 
             // 生成JWT token
             String token = JwtUtil.generateToken(claims);
-            log.info("token生成，user ID: {}", user.getUserId());
+            log.info("token生成，user ID: {}", user.getId());
 
             // 将token存入Redis，设置6小时过期
             // 注意：这里的key使用了用户名和userId的组合，确保唯一性(这个key可以自己修改，只是我调试方便这样设计而已，也可以直接用token为key也行)
-            stringRedisTemplate.opsForValue().set(user.getUsername() + "(" + user.getUserId() + ")", token, 6, TimeUnit.HOURS);
+            stringRedisTemplate.opsForValue().set(user.getUsername() + "(" + user.getId() + ")", token, 6, TimeUnit.HOURS);
             log.info("Token stored in Redis with 6 hours expiration");
             return Result.success(MessageConstant.LOGIN + MessageConstant.SUCCESS, token);
         }
         // 密码错误返回错误信息
         return Result.error(MessageConstant.PASSWORD + MessageConstant.ERROR);
+    }
+
+    /**
+     * 用户登出
+     *
+     * @param token 认证token
+     * @return 结果
+     */
+    @Override
+    @CacheEvict(cacheNames = "userCache", allEntries = true)
+    public Result logout(String token) {
+        log.info("token: {}", token);
+
+        try {
+            // 解析token获取claims
+            String redisKey = JwtUtil.getRedisKeyByToken(RoleEnum.USER.getRole(), token);
+            log.info("Redis key: {}", redisKey);
+
+
+            // 从Redis中删除token
+            Boolean deleteResult = stringRedisTemplate.delete(redisKey);
+            // 如果Redis删除成功，则记录成功日志并返回成功结果
+            if (deleteResult) {
+                log.info("用户登出成功: {}", redisKey);
+                return Result.success(MessageConstant.LOGOUT + MessageConstant.SUCCESS);
+            } else {
+                // 如果Redis删除失败，则记录警告日志并返回失败结果
+                log.warn("用户登出失败: {}", redisKey);
+                return Result.error(MessageConstant.LOGOUT + MessageConstant.FAILED);
+            }
+        } catch (Exception e) {
+            log.error("解析token失败，登出失败", e);
+            return Result.error(MessageConstant.LOGOUT + MessageConstant.FAILED);
+        }
     }
 }
 

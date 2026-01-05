@@ -4,6 +4,9 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import lombok.extern.slf4j.Slf4j;
+import org.amis.vibemusicserver.constant.JwtClaimsConstant;
+import org.amis.vibemusicserver.enumeration.RoleEnum;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Date;
 import java.util.Map;
@@ -68,6 +71,25 @@ public class JwtUtil {
             log.error("JWT verification failed for token: {}", token, e);
             throw e;
         }
+    }
+
+    @NotNull
+    public static String getRedisKeyByToken(String role, String token) {
+        // 解析token获取claims
+        Map<String, Object> claims = parseToken(token);
+
+        // 从claims中获取用户名和adminId
+        String name = (String) claims.get(JwtClaimsConstant.USERNAME);
+        Integer id = 0;
+        if (role.equals(RoleEnum.ADMIN.getRole())) {
+            id = (Integer) claims.get(JwtClaimsConstant.ADMIN_ID);
+        }else if (role.equals(RoleEnum.USER.getRole())) {
+            id = (Integer) claims.get(JwtClaimsConstant.USER_ID);
+        }
+
+        // 构建正确的Redis key（与登录时存储的key格式一致）
+        String redisKey = name + "(" + id + ")";
+        return redisKey;
     }
 
 }
