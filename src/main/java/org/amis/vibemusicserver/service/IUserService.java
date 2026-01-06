@@ -1,11 +1,9 @@
 package org.amis.vibemusicserver.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
-import org.amis.vibemusicserver.model.dto.UserLoginDTO;
-import org.amis.vibemusicserver.model.dto.UserPasswordDTO;
-import org.amis.vibemusicserver.model.dto.UserRegisterDTO;
-import org.amis.vibemusicserver.model.dto.UserResetPasswordDTO;
+import org.amis.vibemusicserver.model.dto.*;
 import org.amis.vibemusicserver.model.entity.User;
+import org.amis.vibemusicserver.model.vo.UserVO;
 import org.amis.vibemusicserver.result.Result;
 
 public interface IUserService extends IService<User> {
@@ -19,14 +17,14 @@ public interface IUserService extends IService<User> {
     // 用户登录
     Result login(UserLoginDTO userLoginDTO);
 
-//    // 用户信息
-//    Result<UserVO> userInfo();
-//
-//    // 更新用户信息
-//    Result updateUserInfo(UserDTO userDTO);
-//
-//    // 更新用户头像
-//    Result updateUserAvatar(String avatarUrl);
+    // 用户信息
+    Result<UserVO> userInfo();
+
+    // 更新用户信息
+    Result updateUserInfo(UserDTO userDTO);
+
+    // 更新用户头像
+    Result updateUserAvatar(String avatarUrl);
 
     // 更新用户密码
     Result updateUserPassword(UserPasswordDTO userPasswordDTO, String token);
@@ -36,9 +34,9 @@ public interface IUserService extends IService<User> {
 
     // 退出登录
     Result logout(String token);
-//
-//    // 注销账号
-//    Result deleteAccount();
+
+    // 注销账号
+    Result deleteAccount();
 //
 //    // 获取所有用户数量
 //    Result<Long> getAllUsersCount();

@@ -8,16 +8,15 @@ import org.amis.vibemusicserver.constant.MessageConstant;
 import org.amis.vibemusicserver.enumeration.RoleEnum;
 import org.amis.vibemusicserver.enumeration.UserStatusEnum;
 import org.amis.vibemusicserver.mapper.UserMapper;
-import org.amis.vibemusicserver.model.dto.UserLoginDTO;
-import org.amis.vibemusicserver.model.dto.UserPasswordDTO;
-import org.amis.vibemusicserver.model.dto.UserRegisterDTO;
-import org.amis.vibemusicserver.model.dto.UserResetPasswordDTO;
+import org.amis.vibemusicserver.model.dto.*;
 import org.amis.vibemusicserver.model.entity.User;
+import org.amis.vibemusicserver.model.vo.UserVO;
 import org.amis.vibemusicserver.result.Result;
 import org.amis.vibemusicserver.service.IUserService;
 import org.amis.vibemusicserver.utils.JwtUtil;
 import org.amis.vibemusicserver.utils.ThreadLocalUtil;
 import org.amis.vibemusicserver.utils.TypeConversionUtil;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -46,6 +45,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private MinioServiceImpl minioService;
 
 
     /**
@@ -186,6 +188,133 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         return Result.error(MessageConstant.PASSWORD + MessageConstant.ERROR);
     }
 
+    /**
+     * 用户信息
+     *
+     * @return 结果
+     */
+    @Override
+    public Result<UserVO> userInfo() {
+        // 从ThreadLocal中获取当前用户信息
+        Map<String, Object> map = ThreadLocalUtil.get();
+        // 从JWT claims中提取用户ID
+        Object userIdObj = map.get(JwtClaimsConstant.USER_ID);
+        // 将用户ID转换为Long类型
+        Long userId = TypeConversionUtil.toLong(userIdObj);
+        // 根据用户ID查询用户信息
+        User user = userMapper.selectById(userId);
+        // 创建用户VO对象
+        UserVO userVO = new UserVO();
+        // 将用户实体属性复制到VO对象中
+        BeanUtils.copyProperties(user, userVO);
+
+        // 返回成功响应，包含用户信息
+        return Result.success(userVO);
+    }
+
+    /**
+     * 更新用户信息
+     *
+     * @param userDTO 用户信息DTO对象
+     * @return 结果
+     */
+    @Override
+    @CacheEvict(cacheNames = "userCache", allEntries = true)
+    public Result updateUserInfo(UserDTO userDTO) {
+        // 从ThreadLocal中获取当前用户信息
+        Map<String, Object> map = ThreadLocalUtil.get();
+        // 从JWT claims中提取用户ID
+        Object userIdObj = map.get(JwtClaimsConstant.USER_ID);
+        // 将用户ID转换为Long类型
+        Long userId = TypeConversionUtil.toLong(userIdObj);
+
+        // 检查用户名是否已被其他用户使用
+        User userByUsername = userMapper.selectOne(new QueryWrapper<User>()
+                .eq("username", userDTO.getUsername()));
+        if (userByUsername != null && !userByUsername.getId().equals(userId)) {
+            log.error(MessageConstant.USERNAME + MessageConstant.ALREADY_EXISTS);
+            return Result.error(MessageConstant.USERNAME + MessageConstant.ALREADY_EXISTS);
+        }
+
+        // 检查手机号是否已被其他用户使用
+        User userByPhone = userMapper.selectOne(new QueryWrapper<User>()
+                .eq("phone", userDTO.getPhone()));
+        if (userByPhone != null && !userByPhone.getId().equals(userId)) {
+            log.error(MessageConstant.PHONE + MessageConstant.ALREADY_EXISTS);
+            return Result.error(MessageConstant.PHONE + MessageConstant.ALREADY_EXISTS);
+        }
+
+        // 检查邮箱是否已被其他用户使用
+        User userByEmail = userMapper.selectOne(new QueryWrapper<User>()
+                .eq("email", userDTO.getEmail()));
+        if (userByEmail != null && !userByEmail.getId().equals(userId)) {
+            log.error(MessageConstant.EMAIL + MessageConstant.ALREADY_EXISTS);
+            return Result.error(MessageConstant.EMAIL + MessageConstant.ALREADY_EXISTS);
+        }
+
+        // 创建用户实体对象并复制DTO属性
+        User user = new User();
+        BeanUtils.copyProperties(userDTO, user);
+        // 更新更新时间
+        user.setUpdateTime(LocalDateTime.now());
+
+        // 执行更新操作，检查是否成功
+        if (userMapper.updateById(user) == 0) {
+            log.error(MessageConstant.UPDATE + MessageConstant.FAILED);
+            return Result.error(MessageConstant.UPDATE + MessageConstant.FAILED);
+        }
+
+        // 记录成功日志并返回成功结果
+        log.info(MessageConstant.UPDATE + MessageConstant.SUCCESS);
+        return Result.success(MessageConstant.UPDATE + MessageConstant.SUCCESS);
+    }
+
+    /**
+     * 更新用户头像
+     *
+     * @param avatarUrl 用户头像URL地址
+     * @return 结果
+     */
+    @Override
+    @CacheEvict(cacheNames = "userCache", allEntries = true)
+    public Result updateUserAvatar(String avatarUrl) {
+        // 从ThreadLocal中获取当前用户信息
+        Map<String, Object> map = ThreadLocalUtil.get();
+        // 从JWT claims中提取用户ID
+        Object userIdObj = map.get(JwtClaimsConstant.USER_ID);
+        // 将用户ID转换为Long类型
+        Long userId = TypeConversionUtil.toLong(userIdObj);
+
+        // 根据用户ID查询用户信息
+        User user = userMapper.selectById(userId);
+        // 获取用户当前头像URL
+        String userAvatar = user.getUserAvatar();
+        // 如果用户已有头像，则删除旧头像文件
+        if (userAvatar != null && !userAvatar.isEmpty()) {
+            minioService.deleteFile(userAvatar);
+        }
+
+        // 更新用户头像和更新时间
+        int id = userMapper.update(new User().setUserAvatar(avatarUrl).setUpdateTime(LocalDateTime.now()),
+                new QueryWrapper<User>().eq("id", userId));
+        // 检查更新是否成功
+        if (id == 0) {
+            log.error(MessageConstant.UPDATE + MessageConstant.FAILED);
+            return Result.error(MessageConstant.UPDATE + MessageConstant.FAILED);
+        }
+
+        // 记录成功日志并返回成功结果
+        log.info(MessageConstant.UPDATE + MessageConstant.SUCCESS);
+        return Result.success(MessageConstant.UPDATE + MessageConstant.SUCCESS);
+    }
+
+    /**
+     * 更新用户密码
+     *
+     * @param userPasswordDTO 用户密码信息
+     * @param token           JWT token
+     * @return 结果
+     */
     @Override
     public Result updateUserPassword(UserPasswordDTO userPasswordDTO, String token) {
         // 解析token获取用户信息
@@ -305,6 +434,47 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             log.error("解析token失败，登出失败", e);
             return Result.error(MessageConstant.LOGOUT + MessageConstant.FAILED);
         }
+    }
+
+    /**
+     * 注销账户
+     *
+     * @return 结果
+     */
+    @Override
+    @CacheEvict(cacheNames = "userCache", allEntries = true)
+    public Result deleteAccount() {
+        // 从ThreadLocal中获取当前用户信息
+        Map<String, Object> map = ThreadLocalUtil.get();
+        // 从JWT claims中提取用户ID
+        Object userIdObj = map.get(JwtClaimsConstant.USER_ID);
+        // 将用户ID转换为Long类型
+        Long userId = TypeConversionUtil.toLong(userIdObj);
+
+        // 根据用户ID查询用户信息
+        User user = userMapper.selectById(userId);
+        // 检查用户是否存在
+        if (user == null) {
+            log.error(MessageConstant.USER + MessageConstant.NOT_EXIST);
+            return Result.error(MessageConstant.USER + MessageConstant.NOT_EXIST);
+        }
+
+        // 获取用户头像URL
+        String userAvatar = user.getUserAvatar();
+        // 如果用户头像存在，则删除头像文件
+        if (userAvatar != null && !userAvatar.isEmpty()) {
+            // 删除用户头像
+            minioService.deleteFile(userAvatar);
+        }
+
+        // 执行用户删除操作
+        if (userMapper.deleteById(userId) == 0) {
+            log.error(MessageConstant.DELETE + MessageConstant.FAILED);
+            return Result.error(MessageConstant.DELETE + MessageConstant.FAILED);
+        }
+        // 记录删除成功日志并返回成功结果
+        log.info(MessageConstant.DELETE + MessageConstant.SUCCESS);
+        return Result.success(MessageConstant.DELETE + MessageConstant.SUCCESS);
     }
 }
 
