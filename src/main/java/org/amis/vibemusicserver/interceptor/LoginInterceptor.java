@@ -11,6 +11,8 @@ import org.amis.vibemusicserver.enumeration.RoleEnum;
 import org.amis.vibemusicserver.utils.JwtUtil;
 import org.amis.vibemusicserver.utils.ThreadLocalUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Component;
@@ -37,6 +39,8 @@ public class LoginInterceptor implements HandlerInterceptor {
     private StringRedisTemplate stringRedisTemplate;
     @Autowired
     private RolePermissionManager rolePermissionManager;
+    @Autowired
+    private Environment environment;
 
     public void sendErrorResponse(HttpServletResponse response, int status, String message) throws IOException {
         response.setStatus(status);
@@ -59,13 +63,21 @@ public class LoginInterceptor implements HandlerInterceptor {
 
         String token = request.getHeader("Authorization");
         String path = request.getRequestURI();
-        log.info("拦截器开始处理请求: {} {}", request.getMethod(), path);
+        boolean isDevOrLocal = environment.acceptsProfiles(Profiles.of("local", "dev"));
+
+        if (isDevOrLocal) {
+            log.info("拦截器开始处理请求: {} {}", request.getMethod(), path);
+        }
 
         if (token != null && token.startsWith("Bearer ")) {
             token = token.substring(7); // 去掉 "Bearer " 前缀
-            log.info("接收到token: {}...", token.length() > 20 ? token.substring(0, 20) + "..." : token);
+            if (isDevOrLocal) {
+                log.info("接收到token: {}...", token.length() > 20 ? token.substring(0, 20) + "..." : token);
+            }
         } else {
-            log.warn("Authorization头为空或格式不正确: {}", token);
+            if (isDevOrLocal) {
+                log.warn("Authorization头为空或格式不正确: {}", token);
+            }
         }
         // 获取 Spring 的 PathMatcher 实例
         PathMatcher pathMatcher = new AntPathMatcher();
@@ -81,15 +93,21 @@ public class LoginInterceptor implements HandlerInterceptor {
         // 检查路径是否匹配
         boolean isAllowedPath = allowedPaths.stream()
                 .anyMatch(pattern -> pathMatcher.match(pattern, path));
-        log.info("路径 {} 是否为允许路径: {}", path, isAllowedPath);
+        if (isDevOrLocal) {
+            log.info("路径 {} 是否为允许路径: {}", path, isAllowedPath);
+        }
 
         if (token == null || token.isEmpty()) {
             if (isAllowedPath) {
-                log.info("允许未登录用户访问路径: {}", path);
+                if (isDevOrLocal) {
+                    log.info("允许未登录用户访问路径: {}", path);
+                }
                 return true; // 允许未登录用户访问这些路径
             }
 
-            log.warn("缺少令牌，拒绝访问路径: {}", path);
+            if (isDevOrLocal) {
+                log.warn("缺少令牌，拒绝访问路径: {}", path);
+            }
             sendErrorResponse(response, ResultCodeEnum.NOT_LOGIN.getCode(), MessageConstant.NOT_LOGIN); // 缺少令牌
             return false;
         }
@@ -100,30 +118,43 @@ public class LoginInterceptor implements HandlerInterceptor {
             // 构建Redis key，此处仅为示例，实际使用时需要根据实际情况调整
             String redisKeyByToken = JwtUtil.getRedisKeyByToken(RoleEnum.USER.getRole(), token);
             String redisToken = operations.get(redisKeyByToken);
-            log.info("Redis中查找token结果: {}", redisToken != null ? "存在" : "不存在");
+
+            if (isDevOrLocal) {
+                log.info("Redis中查找token结果: {}", redisToken != null ? "存在" : "不存在");
+            }
 
             if (redisToken == null) {
                 // token失效
-                log.warn("Token在Redis中不存在，已失效: {}", token);
+                if (isDevOrLocal) {
+                    log.warn("Token在Redis中不存在，已失效: {}", token);
+                }
                 throw new RuntimeException("Token not found in Redis");
             }
 
             Map<String, Object> claims = JwtUtil.parseToken(token);
             String role = (String) claims.get(JwtClaimsConstant.ROLE);
-            log.info("解析token成功，角色: {}, 用户ID: {}", role, claims.get(JwtClaimsConstant.USER_ID));
+            if (isDevOrLocal) {
+                log.info("解析token成功，角色: {}, 用户ID: {}", role, claims.get(JwtClaimsConstant.USER_ID));
+            }
 
             if (rolePermissionManager.hasPermission(role, path)) {
                 // 把业务数据存储到ThreadLocal中
                 ThreadLocalUtil.set(claims);
-                log.info("权限验证通过，设置ThreadLocal，允许访问路径: {}", path);
+                if (isDevOrLocal) {
+                    log.info("权限验证通过，设置ThreadLocal，允许访问路径: {}", path);
+                }
                 return true;
             } else {
-                log.warn("角色 {} 无权限访问路径: {}", role, path);
+                if (isDevOrLocal) {
+                    log.warn("角色 {} 无权限访问路径: {}", role, path);
+                }
                 sendErrorResponse(response, ResultCodeEnum.NO_PERMISSION.getCode(), MessageConstant.NO_PERMISSION); // 无权限访问
                 return false;
             }
         } catch (Exception e) {
-            log.error("Token验证失败，路径: {}, 错误: {}", path, e.getMessage());
+            if (isDevOrLocal) {
+                log.error("Token验证失败，路径: {}, 错误: {}", path, e.getMessage());
+            }
             sendErrorResponse(response, ResultCodeEnum.TOKEN_INVALID.getCode(), MessageConstant.SESSION_EXPIRED); // 令牌无效
             return false;
         }
