@@ -37,6 +37,9 @@ public enum ResultCodeEnum {
     TOKEN_EXPIRED(1006, "令牌已过期"),
     TOKEN_INVALID(1007, "令牌无效"),
     PERMISSION_DENIED(1008, "权限不足"),
+    NOT_LOGIN(1009, "缺少令牌"),
+    SESSION_EXPIRED(1010, "会话已过期"),
+    NO_PERMISSION(1011, "无权限访问"),
 
     /**
      * 数据相关错误
