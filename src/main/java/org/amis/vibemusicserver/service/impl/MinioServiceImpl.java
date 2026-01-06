@@ -53,7 +53,7 @@ public class MinioServiceImpl implements MinioService {
             // 上传文件到Minio存储桶
             minioClient.putObject(
                     PutObjectArgs.builder()
-                            .bucket("vibemusic")
+                            .bucket(bucketName)
                             .object(fileName)
                             .stream(inputStream, file.getSize(), -1)
                             .contentType(file.getContentType())

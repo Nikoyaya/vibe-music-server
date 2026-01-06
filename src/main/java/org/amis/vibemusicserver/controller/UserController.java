@@ -30,6 +30,8 @@ public class UserController {
 
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
+
+    @Autowired
     private MinioService minioService;
 
     /**
