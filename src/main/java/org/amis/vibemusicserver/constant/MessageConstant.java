@@ -58,5 +58,6 @@ public class MessageConstant {
     public static final String BANNER_STATUS_INVALID = "轮播图状态无效";
 
     public static final String FILE_UPLOAD = "文件上传";
+    public static final String FILE_DELETE = "文件删除";
 }
 
