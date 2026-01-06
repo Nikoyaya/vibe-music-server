@@ -2,15 +2,13 @@ package org.amis.vibemusicserver.controller;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
-import lombok.extern.slf4j.Slf4j;
 import org.amis.vibemusicserver.constant.MessageConstant;
-import org.amis.vibemusicserver.model.dto.UserLoginDTO;
-import org.amis.vibemusicserver.model.dto.UserRegisterDTO;
-import org.amis.vibemusicserver.model.dto.VerificationCodeDTO;
+import org.amis.vibemusicserver.model.dto.*;
 import org.amis.vibemusicserver.result.Result;
 import org.amis.vibemusicserver.service.IUserService;
 import org.amis.vibemusicserver.utils.BindingResultUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,6 +24,9 @@ public class UserController {
 
     @Autowired
     private IUserService userService;
+
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
 
     /**
      * 发送验证码
@@ -54,6 +55,8 @@ public class UserController {
         if (!isCodeValid) {
             return Result.error(MessageConstant.VERIFICATION_CODE + MessageConstant.INVALID);
         }
+        // 删除Redis中的验证码
+        stringRedisTemplate.delete("verificationCode:" + verificationCodeDTO.getEmail());
         return Result.success(MessageConstant.VERIFICATION_CODE + MessageConstant.SUCCESS);
     }
 
@@ -103,6 +106,51 @@ public class UserController {
     @RequestMapping("/logout")
     public Result logout(@RequestHeader("Authorization") String token) {
         return userService.logout(token);
+    }
+
+    /**
+     * 更新用户密码
+     *
+     * @param userPasswordDTO 用户密码信息
+     * @param token           认证token
+     * @return 结果
+     */
+    @PatchMapping("/updateUserPassword")
+    public Result updateUserPassword(@RequestBody @Valid UserPasswordDTO userPasswordDTO,
+                                     @RequestHeader("Authorization") String token, BindingResult bindingResult) {
+        // 处理参数校验结果
+        String errorMessage = BindingResultUtil.handleBindingResultErrors(bindingResult);
+        if (bindingResult.hasErrors()) {
+            return Result.error(errorMessage);
+        }
+        // 调用服务层更新密码
+        return userService.updateUserPassword(userPasswordDTO, token);
+    }
+
+    /**
+     * 重置用户密码
+     *
+     * @param userResetPasswordDTO 用户密码信息
+     * @return 结果
+     */
+    @PatchMapping("/resetUserPassword")
+    public Result resetUserPassword(@RequestBody @Valid UserResetPasswordDTO userResetPasswordDTO, BindingResult bindingResult) {
+        // 校验DTO参数，如果校验失败则返回错误信息
+        String errorMessage = BindingResultUtil.handleBindingResultErrors(bindingResult);
+        if (errorMessage != null) {
+            return Result.error(errorMessage);
+        }
+
+        // 验证邮箱验证码是否有效
+        Boolean isCodeValid = userService.verifyVerificationCode(userResetPasswordDTO.getEmail(), userResetPasswordDTO.getVerificationCode());
+
+        // 如果验证码无效，返回错误信息
+        if (!isCodeValid) {
+            return Result.error(MessageConstant.VERIFICATION_CODE + MessageConstant.INVALID);
+        }
+
+        // 调用服务层重置用户密码
+        return userService.resetUserPassword(userResetPasswordDTO);
     }
 }
 

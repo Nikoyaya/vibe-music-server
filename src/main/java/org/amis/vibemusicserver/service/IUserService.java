@@ -2,7 +2,9 @@ package org.amis.vibemusicserver.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import org.amis.vibemusicserver.model.dto.UserLoginDTO;
+import org.amis.vibemusicserver.model.dto.UserPasswordDTO;
 import org.amis.vibemusicserver.model.dto.UserRegisterDTO;
+import org.amis.vibemusicserver.model.dto.UserResetPasswordDTO;
 import org.amis.vibemusicserver.model.entity.User;
 import org.amis.vibemusicserver.result.Result;
 
@@ -25,12 +27,12 @@ public interface IUserService extends IService<User> {
 //
 //    // 更新用户头像
 //    Result updateUserAvatar(String avatarUrl);
-//
-//    // 更新用户密码
-//    Result updateUserPassword(UserPasswordDTO userPasswordDTO, String token);
-//
-//    // 重置用户密码
-//    Result resetUserPassword(UserResetPasswordDTO userResetPasswordDTO);
+
+    // 更新用户密码
+    Result updateUserPassword(UserPasswordDTO userPasswordDTO, String token);
+
+    // 重置用户密码
+    Result resetUserPassword(UserResetPasswordDTO userResetPasswordDTO);
 
     // 退出登录
     Result logout(String token);

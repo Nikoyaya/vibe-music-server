@@ -9,11 +9,15 @@ import org.amis.vibemusicserver.enumeration.RoleEnum;
 import org.amis.vibemusicserver.enumeration.UserStatusEnum;
 import org.amis.vibemusicserver.mapper.UserMapper;
 import org.amis.vibemusicserver.model.dto.UserLoginDTO;
+import org.amis.vibemusicserver.model.dto.UserPasswordDTO;
 import org.amis.vibemusicserver.model.dto.UserRegisterDTO;
+import org.amis.vibemusicserver.model.dto.UserResetPasswordDTO;
 import org.amis.vibemusicserver.model.entity.User;
 import org.amis.vibemusicserver.result.Result;
 import org.amis.vibemusicserver.service.IUserService;
 import org.amis.vibemusicserver.utils.JwtUtil;
+import org.amis.vibemusicserver.utils.ThreadLocalUtil;
+import org.amis.vibemusicserver.utils.TypeConversionUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -22,6 +26,7 @@ import org.springframework.util.DigestUtils;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -179,6 +184,93 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
         // 密码错误返回错误信息
         return Result.error(MessageConstant.PASSWORD + MessageConstant.ERROR);
+    }
+
+    @Override
+    public Result updateUserPassword(UserPasswordDTO userPasswordDTO, String token) {
+        // 解析token获取用户信息
+        Map<String, Object> claims = JwtUtil.parseToken(token);
+        Integer userIdInt = (Integer) claims.get(JwtClaimsConstant.USER_ID);
+        Long userId = userIdInt.longValue();
+        User user = userMapper.selectById(userId);
+
+        // 验证旧密码是否正确
+        if (!user.getPassword().equals(DigestUtils.md5DigestAsHex(userPasswordDTO.getOldPassword().getBytes()))) {
+            log.error(MessageConstant.OLD_PASSWORD_ERROR);
+            return Result.error(MessageConstant.OLD_PASSWORD_ERROR);
+        }
+
+        // 验证新密码不能与旧密码相同
+        if (user.getPassword().equals(DigestUtils.md5DigestAsHex(userPasswordDTO.getNewPassword().getBytes()))) {
+            log.error(MessageConstant.NEW_PASSWORD_ERROR);
+            return Result.error(MessageConstant.NEW_PASSWORD_ERROR);
+        }
+
+        // 验证确认密码与新密码是否一致
+        if (!userPasswordDTO.getRepeatPassword().equals(userPasswordDTO.getNewPassword())) {
+            log.error(MessageConstant.PASSWORD_NOT_MATCH);
+            return Result.error(MessageConstant.PASSWORD_NOT_MATCH);
+        }
+
+        // 更新用户密码
+        if (userMapper.update(new User()
+                        .setPassword(DigestUtils
+                                .md5DigestAsHex(userPasswordDTO.getNewPassword()
+                                        .getBytes()))
+                        .setUpdateTime(LocalDateTime.now()),
+                new QueryWrapper<User>().eq("id", userId)) == 0) {
+            log.error(MessageConstant.UPDATE + MessageConstant.FAILED);
+            return Result.error(MessageConstant.UPDATE + MessageConstant.FAILED);
+        }
+
+        // 注销当前token，强制用户重新登录
+        String redisKeyByToken = JwtUtil.getRedisKeyByToken(RoleEnum.USER.getRole(), token);
+        stringRedisTemplate.delete(redisKeyByToken);
+
+        return Result.success(MessageConstant.UPDATE + MessageConstant.SUCCESS);
+    }
+
+    /**
+     * 重置用户密码
+     *
+     * @param userResetPasswordDTO 用户密码信息
+     * @return 结果
+     */
+    @Override
+    public Result resetUserPassword(UserResetPasswordDTO userResetPasswordDTO) {
+        // 删除Redis中的验证码，避免重复使用
+        stringRedisTemplate.delete("verificationCode:" + userResetPasswordDTO.getEmail());
+
+        // 根据邮箱查询用户
+        User user = userMapper.selectOne(new QueryWrapper<User>()
+                .eq("email", userResetPasswordDTO.getEmail()));
+
+        // 检查用户是否存在
+        if (user == null) {
+            log.error(MessageConstant.EMAIL + MessageConstant.NOT_EXIST);
+            return Result.error(MessageConstant.EMAIL + MessageConstant.NOT_EXIST);
+        }
+
+        // 验证确认密码与新密码是否一致
+        if (!userResetPasswordDTO.getRepeatPassword().equals(userResetPasswordDTO.getNewPassword())) {
+            log.error(MessageConstant.PASSWORD_NOT_MATCH);
+            return Result.error(MessageConstant.PASSWORD_NOT_MATCH);
+        }
+
+        // 更新用户密码，使用MD5加密
+        if (userMapper.update(new User()
+                        .setPassword(DigestUtils
+                                .md5DigestAsHex(userResetPasswordDTO
+                                        .getNewPassword().getBytes()))
+                        .setUpdateTime(LocalDateTime.now()),
+                new QueryWrapper<User>().eq("id", user.getId())) == 0) {
+            log.error(MessageConstant.PASSWORD + MessageConstant.RESET + MessageConstant.FAILED);
+            return Result.error(MessageConstant.PASSWORD + MessageConstant.RESET + MessageConstant.FAILED);
+        }
+
+        // 记录密码重置成功日志
+        log.info(MessageConstant.PASSWORD + MessageConstant.RESET + MessageConstant.SUCCESS);
+        return Result.success(MessageConstant.PASSWORD + MessageConstant.RESET + MessageConstant.SUCCESS);
     }
 
     /**
