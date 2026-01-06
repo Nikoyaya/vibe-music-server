@@ -2,7 +2,7 @@ package org.amis.vibemusicserver.service;
 
 
 
-public interface IEmailService {
+public interface EmailService {
 
     // 发送邮件
     boolean sendEmail(String to, String subject, String content);

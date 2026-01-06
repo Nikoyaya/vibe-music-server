@@ -4,7 +4,7 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.amis.vibemusicserver.constant.MessageConstant;
-import org.amis.vibemusicserver.service.IEmailService;
+import org.amis.vibemusicserver.service.EmailService;
 import org.amis.vibemusicserver.utils.RandomCodeUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,7 +19,7 @@ import org.springframework.stereotype.Service;
  */
 @Slf4j
 @Service
-public class EmailServiceImpl implements IEmailService {
+public class EmailServiceImpl implements EmailService {
 
     @Autowired
     private JavaMailSenderImpl mailSender;
