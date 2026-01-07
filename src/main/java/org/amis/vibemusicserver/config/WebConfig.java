@@ -6,6 +6,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import static org.amis.vibemusicserver.config.InterceptorExcludePathConfig.getExcludePaths;
+
 /**
  * @author : KwokChichung
  * @description : Web配置类，用于添加拦截器
@@ -19,17 +21,10 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // 登录接口和注册接口不拦截
+        // 使用统一的排除路径配置
         registry.addInterceptor(loginInterceptor)
                 .addPathPatterns("/**") // 拦截所有请求
-                .excludePathPatterns(
-                        "/admin/login", "/admin/logout", "/admin/register",
-                        "/user/login", "/user/logout", "/user/register",
-                        "/user/sendVerificationCode", "/user/resetUserPassword",
-                        "/banner/getBannerList",
-                        "/playlist/getAllPlaylists", "/playlist/getRecommendedPlaylists", "/playlist/getPlaylistDetail/**",
-                        "/artist/getAllArtists", "/artist/getArtistDetail/**",
-                        "/song/getAllSongs", "/song/getRecommendedSongs", "/song/getSongDetail/**");
+                .excludePathPatterns(getExcludePaths().toArray(new String[0]));
     }
 }
 
