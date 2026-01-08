@@ -551,9 +551,65 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         return Result.success(new PageResult<>(userPage.getTotal(), userVOList));
     }
 
+    /**
+     * 添加用户
+     *
+     * @param userAddDTO 用户添加DTO对象
+     * @return 结果
+     */
     @Override
+    @CacheEvict(cacheNames = "userCache", allEntries = true)
     public Result addUser(UserAddDTO userAddDTO) {
-        return null;
+        // 构建查询条件，检查用户名、邮箱、手机号是否已存在
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("username", userAddDTO.getUsername())
+                .or()
+                .eq("email", userAddDTO.getEmail())
+                .or()
+                .eq("phone", userAddDTO.getPhone());
+
+        // 查询已存在的用户
+        List<User> existingUsers = userMapper.selectList(queryWrapper);
+        if (!existingUsers.isEmpty()) {
+            for (User user : existingUsers) {
+                // 检查用户名是否重复
+                if (user.getUsername().equals(userAddDTO.getUsername())) {
+                    return Result.error(MessageConstant.USERNAME + MessageConstant.ALREADY_EXISTS);
+                }
+                // 检查邮箱是否重复
+                if (user.getEmail().equals(userAddDTO.getEmail())) {
+                    return Result.error(MessageConstant.EMAIL + MessageConstant.ALREADY_EXISTS);
+                }
+                // 检查手机号是否重复
+                if (user.getPhone().equals(userAddDTO.getPhone())) {
+                    return Result.error(MessageConstant.PHONE + MessageConstant.ALREADY_EXISTS);
+                }
+            }
+        }
+        // 对密码进行MD5加密
+        String passwordMD5 = DigestUtils.md5DigestAsHex(userAddDTO.getPassword().getBytes());
+        // 创建用户对象并设置属性
+        User user = new User();
+        user.setUsername(userAddDTO.getUsername())
+                .setPassword(passwordMD5)
+                .setPhone(userAddDTO.getPhone())
+                .setEmail(userAddDTO.getEmail())
+                .setIntroduction(userAddDTO.getIntroduction())
+                .setCreateTime(LocalDateTime.now())
+                .setUpdateTime(LocalDateTime.now());
+
+        // 前端传递的用户状态（1：启用，0：禁用）需反转
+        if (userAddDTO.getUserStatus().getCode() == 1) {
+            user.setUserStatus(UserStatusEnum.ENABLE);  // 数据库：0-启用
+        } else if (userAddDTO.getUserStatus().getCode() == 0) {
+            user.setUserStatus(UserStatusEnum.DISABLE); // 数据库：1-禁用
+        }
+
+        // 插入用户数据到数据库
+        if (userMapper.insert(user) == 0) {
+            return Result.error(MessageConstant.ADD + MessageConstant.FAILED);
+        }
+        return Result.success(MessageConstant.ADD + MessageConstant.SUCCESS);
     }
 
     @Override
