@@ -7,7 +7,6 @@ import org.amis.vibemusicserver.constant.JwtClaimsConstant;
 import org.amis.vibemusicserver.constant.MessageConstant;
 import org.amis.vibemusicserver.constant.PathConstant;
 import org.amis.vibemusicserver.enumeration.ResultCodeEnum;
-import org.amis.vibemusicserver.enumeration.RoleEnum;
 import org.amis.vibemusicserver.utils.JwtUtil;
 import org.amis.vibemusicserver.utils.ThreadLocalUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -136,7 +135,7 @@ public class LoginInterceptor implements HandlerInterceptor {
         try {
             // 从redis中获取相同的token验证有效性
             ValueOperations<String, String> operations = stringRedisTemplate.opsForValue();
-            String redisToken = operations.get(operations);
+            String redisToken = operations.get(token);
 
             if (isDevOrLocal) {
                 log.info("Redis中查找token结果: {}", redisToken != null ? "存在" : "不存在");
