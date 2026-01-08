@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import org.springframework.util.StringUtils;
+
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -79,11 +81,11 @@ public class GlobalExceptionHandler {
      * @param ex
      * @return
      */
-    //@ExceptionHandler(Exception.class)
-    //@ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    //public Result handleException(Exception ex) {
-    //    log.error("未知异常：{}", ex.getMessage(), ex);
-    //    String message = StringUtils.hasLength(ex.getMessage()) ? ex.getMessage() : MessageConstant.UNKNOWN_ERROR;
-    //    return errorResult(message);
-    //}
+    @ExceptionHandler(Exception.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public Result handleException(Exception ex) {
+        log.error("未知异常：{}", ex.getMessage(), ex);
+        String message = StringUtils.hasLength(ex.getMessage()) ? ex.getMessage() : MessageConstant.UNKNOWN_ERROR;
+        return errorResult(message);
+    }
 }
