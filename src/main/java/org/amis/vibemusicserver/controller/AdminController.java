@@ -3,6 +3,7 @@ package org.amis.vibemusicserver.controller;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.amis.vibemusicserver.model.dto.AdminDTO;
+import org.amis.vibemusicserver.model.dto.UserAddDTO;
 import org.amis.vibemusicserver.model.dto.UserSearchDTO;
 import org.amis.vibemusicserver.model.vo.UserManagementVO;
 import org.amis.vibemusicserver.result.PageResult;
@@ -103,6 +104,23 @@ public class AdminController {
     @PostMapping("/getAllUsers")
     public Result<PageResult<UserManagementVO>> getAllUsers(@RequestBody UserSearchDTO userSearchDTO) {
         return userService.getAllUsers(userSearchDTO);
+    }
+
+    /**
+     * 添加用户
+     *
+     * @param userAddDTO    用户信息
+     * @param bindingResult 绑定结果
+     * @return 结果
+     */
+    @PostMapping("/addUser")
+    public Result addUser(@RequestBody @Valid UserAddDTO userAddDTO, BindingResult bindingResult) {
+        // 校验失败时，返回错误信息
+        String errorMessage = BindingResultUtil.handleBindingResultErrors(bindingResult);
+        if (errorMessage != null) {
+            return Result.error(errorMessage);
+        }
+        return userService.addUser(userAddDTO);
     }
 }
 

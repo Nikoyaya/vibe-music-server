@@ -612,9 +612,47 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         return Result.success(MessageConstant.ADD + MessageConstant.SUCCESS);
     }
 
+    /**
+     * 更新用户信息
+     *
+     * @param userDTO 用户信息DTO对象
+     * @return 结果
+     */
     @Override
+    @CacheEvict(cacheNames = "userCache", allEntries = true)
     public Result updateUser(UserDTO userDTO) {
-        return null;
+        // 获取用户ID和用户名
+        Long userId = userDTO.getUserId();
+        String username = userDTO.getUsername();
+
+        // 检查用户名是否与其他用户重复
+        User userByUsername = userMapper.selectOne(new QueryWrapper<User>().eq("user", username));
+        if (userByUsername != null && userByUsername.getId().equals(userId)) {
+            return Result.error(MessageConstant.USERNAME + MessageConstant.ALREADY_EXISTS);
+        }
+
+        // 检查手机号是否与其他用户重复
+        User userByPhone = userMapper.selectOne(new QueryWrapper<User>().eq("phone", userDTO.getPhone()));
+        if (userByPhone != null && userByPhone.getId().equals(userId)) {
+            return Result.error(MessageConstant.PHONE + MessageConstant.ALREADY_EXISTS);
+        }
+
+        // 检查邮箱是否与其他用户重复
+        User userByEmail = userMapper.selectOne(new QueryWrapper<User>().eq("email", userDTO.getEmail()));
+        if (userByEmail != null && userByEmail.getId().equals(userId)) {
+            return Result.error(MessageConstant.EMAIL + MessageConstant.ALREADY_EXISTS);
+        }
+
+        // 创建用户对象并复制属性
+        User user = new User();
+        BeanUtils.copyProperties(userDTO, user);
+        user.setUpdateTime(LocalDateTime.now());
+
+        // 执行更新操作并检查结果
+        if (userMapper.updateById(user) == 0) {
+            return Result.error(MessageConstant.UPDATE + MessageConstant.FAILED);
+        }
+        return Result.success(MessageConstant.UPDATE + MessageConstant.SUCCESS);
     }
 
     @Override
