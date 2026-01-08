@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import lombok.Data;
 import org.amis.vibemusicserver.constant.MessageConstant;
 import org.amis.vibemusicserver.enumeration.UserStatusEnum;
 
@@ -15,6 +16,7 @@ import java.io.Serializable;
  * @description :
  * @createDate : 2026/1/8 20:59
  */
+@Data
 public class UserAddDTO implements Serializable {
 
     @Serial
