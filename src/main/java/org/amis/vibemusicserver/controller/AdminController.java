@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.amis.vibemusicserver.model.dto.AdminDTO;
 import org.amis.vibemusicserver.result.Result;
 import org.amis.vibemusicserver.service.IAdminService;
+import org.amis.vibemusicserver.service.IUserService;
 import org.amis.vibemusicserver.utils.BindingResultUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.BindingResult;
@@ -22,6 +23,9 @@ public class AdminController {
 
     @Autowired
     private IAdminService adminService;
+
+    @Autowired
+    private IUserService userService;
 
 
     /**
@@ -74,6 +78,16 @@ public class AdminController {
     }
 
     //**********************************************************************************************/
+
+    /**
+     * 获取所有用户数量
+     *
+     * @return 用户数量
+     */
+    @GetMapping("/getAllUsersCount")
+    public Result<Long> getAllUsersCount() {
+        return userService.getAllUsersCount();
+    }
 
 }
 

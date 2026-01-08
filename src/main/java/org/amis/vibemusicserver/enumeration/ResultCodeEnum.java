@@ -67,7 +67,8 @@ public enum ResultCodeEnum {
      */
     BUSINESS_ERROR(5001, "业务逻辑错误"),
     OPERATION_FAILED(5002, "操作失败"),
-    SYSTEM_BUSY(5003, "系统繁忙，请稍后重试");
+    SYSTEM_BUSY(5003, "系统繁忙，请稍后重试"),
+    DATA_NOT_EXIST(5004, "数据不存在");
 
     /**
      * 状态码
@@ -81,7 +82,8 @@ public enum ResultCodeEnum {
 
     /**
      * 构造方法
-     * @param code 状态码
+     *
+     * @param code    状态码
      * @param message 状态消息
      */
     ResultCodeEnum(int code, String message) {
@@ -91,6 +93,7 @@ public enum ResultCodeEnum {
 
     /**
      * 获取状态码
+     *
      * @return 状态码
      */
     public int getCode() {
@@ -99,6 +102,7 @@ public enum ResultCodeEnum {
 
     /**
      * 获取状态消息
+     *
      * @return 状态消息
      */
     public String getMessage() {
@@ -107,6 +111,7 @@ public enum ResultCodeEnum {
 
     /**
      * 根据状态码获取对应的枚举实例
+     *
      * @param code 状态码
      * @return 对应的ResultCode枚举实例
      */
@@ -121,6 +126,7 @@ public enum ResultCodeEnum {
 
     /**
      * 判断状态码是否表示成功（2xx状态码）
+     *
      * @param code 状态码
      * @return 是否成功
      */

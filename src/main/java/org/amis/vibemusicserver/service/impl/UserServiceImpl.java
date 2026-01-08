@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.amis.vibemusicserver.constant.JwtClaimsConstant;
 import org.amis.vibemusicserver.constant.MessageConstant;
+import org.amis.vibemusicserver.enumeration.ResultCodeEnum;
 import org.amis.vibemusicserver.enumeration.RoleEnum;
 import org.amis.vibemusicserver.enumeration.UserStatusEnum;
 import org.amis.vibemusicserver.mapper.UserMapper;
@@ -469,6 +470,20 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         // 记录删除成功日志并返回成功结果
         log.info(MessageConstant.DELETE + MessageConstant.SUCCESS);
         return Result.success(MessageConstant.DELETE + MessageConstant.SUCCESS);
+    }
+
+    //**********************************************************************************************/
+
+
+    /**
+     * 获取所有用户数量
+     *
+     * @return 结果
+     */
+    @Override
+    public Result<Long> getAllUsersCount() {
+        Long count = userMapper.selectCount(new QueryWrapper<>());
+        return Result.success(count);
     }
 }
 

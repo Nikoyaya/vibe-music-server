@@ -37,9 +37,11 @@ public interface IUserService extends IService<User> {
 
     // 注销账号
     Result deleteAccount();
-//
-//    // 获取所有用户数量
-//    Result<Long> getAllUsersCount();
+
+    //**********************************************************************************************/
+
+    // 获取所有用户数量
+    Result<Long> getAllUsersCount();
 //
 //    // 获取所有用户
 //    Result<PageResult<UserManagementVO>> getAllUsers(UserSearchDTO userSearchDTO);
