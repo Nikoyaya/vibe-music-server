@@ -168,6 +168,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         boolean passwordEquals = DigestUtils.md5DigestAsHex(userLoginDTO.getPassword().getBytes()).equals(user.getPassword());
         if (passwordEquals) {
             log.info("用户登录成功: {}", userLoginDTO.getEmail());
+            // 单点登录控制：先查找并删除旧的token
+            String userTokenKey = "user_token:" + user.getId();
+            String oldToken = stringRedisTemplate.opsForValue().get(userTokenKey);
+            if (oldToken != null) {
+                stringRedisTemplate.delete(oldToken); // 删除旧的token记录
+                log.info("删除旧的token，实现单点登录控制，user ID: {}", user.getId());
+            }
+
             // 创建JWT的claims（声明）
             HashMap<String, Object> claims = new HashMap<>();
             claims.put(JwtClaimsConstant.ROLE, RoleEnum.USER.getRole());
@@ -181,6 +189,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
             // 将token存入Redis，设置6小时过期
             stringRedisTemplate.opsForValue().set(token, token, 6, TimeUnit.HOURS);
+            // 存储用户ID与token的映射关系，用于单点登录控制
+            stringRedisTemplate.opsForValue().set(userTokenKey, token, 6, TimeUnit.HOURS);
             log.info("Token stored in Redis with 6 hours expiration");
             return Result.success(MessageConstant.LOGIN + MessageConstant.SUCCESS, token);
         }

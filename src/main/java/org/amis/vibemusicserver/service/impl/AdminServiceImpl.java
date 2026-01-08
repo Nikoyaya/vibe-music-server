@@ -94,6 +94,14 @@ public class AdminServiceImpl extends ServiceImpl<AdminMapper, Admin> implements
 
         // 验证密码是否正确
         if (DigestUtils.md5DigestAsHex(adminDTO.getPassword().getBytes()).equals(admin.getPassword())) {
+            // 单点登录控制：先查找并删除旧的token
+            String adminTokenKey = "admin_token:" + admin.getAdminId();
+            String oldToken = stringRedisTemplate.opsForValue().get(adminTokenKey);
+            if (oldToken != null) {
+                stringRedisTemplate.delete(oldToken); // 删除旧的token记录
+                log.info("删除旧的token，实现单点登录控制，admin ID: {}", admin.getAdminId());
+            }
+
             // 创建JWT的claims（声明）
             Map<String, Object> claims = new HashMap<>();
             claims.put(JwtClaimsConstant.ADMIN_ID, admin.getAdminId());
@@ -106,6 +114,8 @@ public class AdminServiceImpl extends ServiceImpl<AdminMapper, Admin> implements
 
             // 将token存入Redis，设置6小时过期
             stringRedisTemplate.opsForValue().set(token, token, 6, TimeUnit.HOURS);
+            // 存储用户ID与token的映射关系，用于单点登录控制
+            stringRedisTemplate.opsForValue().set(adminTokenKey, token, 6, TimeUnit.HOURS);
             log.info("Token stored in Redis with 6 hours expiration");
 
             // 返回成功结果和token
