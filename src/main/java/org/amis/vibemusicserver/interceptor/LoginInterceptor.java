@@ -152,8 +152,15 @@ public class LoginInterceptor implements HandlerInterceptor {
             // 解析token获取用户信息
             Map<String, Object> claims = JwtUtil.parseToken(token);
             String role = (String) claims.get(JwtClaimsConstant.ROLE);
+
+            // 获取用户ID，优先使用ADMIN_ID，如果没有则使用USER_ID
+            Object userId = claims.get(JwtClaimsConstant.ADMIN_ID);
+            if (userId == null) {
+                userId = claims.get(JwtClaimsConstant.USER_ID);
+            }
+
             if (isDevOrLocal) {
-                log.info("解析token成功，角色: {}, 用户ID: {}", role, claims.get(JwtClaimsConstant.USER_ID));
+                log.info("解析token成功，角色: {}, 用户ID: {}", role, userId);
             }
 
             // 检查用户是否有权限访问该路径
