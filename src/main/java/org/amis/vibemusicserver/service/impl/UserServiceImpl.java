@@ -655,19 +655,75 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         return Result.success(MessageConstant.UPDATE + MessageConstant.SUCCESS);
     }
 
+    /**
+     * 更新用户状态
+     *
+     * @param userId     用户ID
+     * @param userStatus 用户状态
+     * @return 结果
+     */
     @Override
+    @CacheEvict(cacheNames = "userCache", allEntries = true)
     public Result updateUserStatus(Long userId, Integer userStatus) {
-        return null;
+        // 校验用户状态参数的有效性
+        UserStatusEnum statusEnum;
+        if (userStatus == 0) {
+            statusEnum = UserStatusEnum.ENABLE;    // 0表示启用状态
+        } else if (userStatus == 1) {
+            statusEnum = UserStatusEnum.DISABLE;   // 1表示禁用状态
+        } else {
+            return Result.error(MessageConstant.USER_STATUS_INVALID);  // 状态值无效
+        }
+
+        // 构建更新对象并设置更新时间
+        User user = new User();
+        user.setUserStatus(statusEnum)
+                .setUpdateTime(LocalDateTime.now());
+
+        // 执行更新操作，检查是否成功更新记录
+        int updateRows = userMapper.update(user, new QueryWrapper<User>().eq("id", userId));
+        if (updateRows == 0) {
+            return Result.error(MessageConstant.UPDATE + MessageConstant.FAILED);  // 更新失败
+        }
+        return Result.success(MessageConstant.UPDATE + MessageConstant.SUCCESS);   // 更新成功
     }
 
+    /**
+     * 删除用户
+     *
+     * @param userId 用户ID
+     * @return 结果
+     */
     @Override
+    @CacheEvict(cacheNames = "userCache", allEntries = true)
     public Result deleteUser(Long userId) {
-        return null;
+        // 调用userMapper删除指定ID的用户
+        int row = userMapper.deleteById(userId);
+        // 如果删除行数为0，说明用户不存在或删除失败，返回错误信息
+        if (row == 0) {
+            return Result.error(MessageConstant.DELETE + MessageConstant.FAILED);
+        }
+        // 删除成功，返回成功信息
+        return Result.success(MessageConstant.DELETE + MessageConstant.SUCCESS);
     }
 
+    /**
+     * 批量删除用户
+     *
+     * @param userIds 用户ID列表
+     * @return 结果
+     */
     @Override
+    @CacheEvict(cacheNames = "userCache", allEntries = true)
     public Result deleteUsers(List<Long> userIds) {
-        return null;
+        // 调用mapper批量删除用户
+        int rows = userMapper.deleteByIds(userIds);
+        // 如果删除行数为0，返回失败结果
+        if (rows == 0) {
+            return Result.error(MessageConstant.DELETE + MessageConstant.FAILED);
+        }
+        // 返回成功结果
+        return Result.success(MessageConstant.DELETE + MessageConstant.SUCCESS);
     }
 }
 

@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.amis.vibemusicserver.model.dto.AdminDTO;
 import org.amis.vibemusicserver.model.dto.UserAddDTO;
+import org.amis.vibemusicserver.model.dto.UserDTO;
 import org.amis.vibemusicserver.model.dto.UserSearchDTO;
 import org.amis.vibemusicserver.model.vo.UserManagementVO;
 import org.amis.vibemusicserver.result.PageResult;
@@ -122,5 +123,60 @@ public class AdminController {
         }
         return userService.addUser(userAddDTO);
     }
+
+    /**
+     * 更新用户信息
+     *
+     * @param userDTO       用户信息
+     * @param bindingResult 绑定结果
+     * @return 结果
+     */
+    @PutMapping("/updateUser")
+    public Result updateUser(@RequestBody @Valid UserDTO userDTO, BindingResult bindingResult) {
+        // 校验失败时，返回错误信息
+        String errorMessage = BindingResultUtil.handleBindingResultErrors(bindingResult);
+        if (errorMessage != null) {
+            return Result.error(errorMessage);
+        }
+        return userService.updateUser(userDTO);
+    }
+
+    /**
+     * 更新用户状态
+     *
+     * @param userId     用户ID
+     * @param userStatus 用户状态
+     * @return 结果
+     */
+    @PatchMapping("/updateUserStatus/{id}/{status}")
+    public Result updateUserStatus(@PathVariable("id") Long userId, @PathVariable("status") Integer userStatus) {
+        return userService.updateUserStatus(userId, userStatus);
+    }
+
+    /**
+     * 删除用户
+     *
+     * @param userId 用户ID
+     * @return 结果
+     */
+    @DeleteMapping("/deleteUser/{id}")
+    public Result deleteUser(@PathVariable("id") Long userId) {
+        return userService.deleteUser(userId);
+    }
+
+    /**
+     * 批量删除用户
+     *
+     * @param userIds 用户ID列表
+     * @return 结果
+     */
+    @DeleteMapping("/deleteUsers")
+    public Result deleteUsers(@RequestBody List<Long> userIds) {
+        return userService.deleteUsers(userIds);
+    }
+
+    //**********************************************************************************************/
+
+
 }
 
