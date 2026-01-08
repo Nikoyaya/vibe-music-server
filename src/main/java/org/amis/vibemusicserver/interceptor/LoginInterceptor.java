@@ -44,9 +44,10 @@ public class LoginInterceptor implements HandlerInterceptor {
 
     /**
      * 发送错误响应
+     *
      * @param response HTTP响应对象
-     * @param status HTTP状态码
-     * @param message 错误消息
+     * @param status   HTTP状态码
+     * @param message  错误消息
      * @throws IOException 写入响应时可能抛出IO异常
      */
     public void sendErrorResponse(HttpServletResponse response, int status, String message) throws IOException {
@@ -62,9 +63,10 @@ public class LoginInterceptor implements HandlerInterceptor {
 
     /**
      * 预处理请求，进行登录状态和权限验证
-     * @param request HTTP请求对象
+     *
+     * @param request  HTTP请求对象
      * @param response HTTP响应对象
-     * @param handler 处理器对象
+     * @param handler  处理器对象
      * @return 是否继续执行后续的拦截器或处理器
      * @throws Exception 在处理过程中可能抛出的异常
      */
@@ -134,9 +136,7 @@ public class LoginInterceptor implements HandlerInterceptor {
         try {
             // 从redis中获取相同的token验证有效性
             ValueOperations<String, String> operations = stringRedisTemplate.opsForValue();
-            // 构建Redis key，此处仅为示例，实际使用时需要根据实际情况调整
-            String redisKeyByToken = JwtUtil.getRedisKeyByToken(RoleEnum.USER.getRole(), token);
-            String redisToken = operations.get(redisKeyByToken);
+            String redisToken = operations.get(operations);
 
             if (isDevOrLocal) {
                 log.info("Redis中查找token结果: {}", redisToken != null ? "存在" : "不存在");

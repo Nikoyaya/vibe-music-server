@@ -179,8 +179,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             log.info("token生成，user ID: {}", user.getId());
 
             // 将token存入Redis，设置6小时过期
-            // 注意：这里的key使用了用户名和userId的组合，确保唯一性(这个key可以自己修改，只是我调试方便这样设计而已，也可以直接用token为key也行)
-            stringRedisTemplate.opsForValue().set(user.getUsername() + "(" + user.getId() + ")", token, 6, TimeUnit.HOURS);
+            stringRedisTemplate.opsForValue().set(token, token, 6, TimeUnit.HOURS);
             log.info("Token stored in Redis with 6 hours expiration");
             return Result.success(MessageConstant.LOGIN + MessageConstant.SUCCESS, token);
         }
@@ -353,8 +352,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
 
         // 注销当前token，强制用户重新登录
-        String redisKeyByToken = JwtUtil.getRedisKeyByToken(RoleEnum.USER.getRole(), token);
-        stringRedisTemplate.delete(redisKeyByToken);
+        stringRedisTemplate.delete(token);
 
         return Result.success(MessageConstant.UPDATE + MessageConstant.SUCCESS);
     }
@@ -414,20 +412,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         log.info("token: {}", token);
 
         try {
-            // 解析token获取claims
-            String redisKey = JwtUtil.getRedisKeyByToken(RoleEnum.USER.getRole(), token);
-            log.info("Redis key: {}", redisKey);
-
 
             // 从Redis中删除token
-            Boolean deleteResult = stringRedisTemplate.delete(redisKey);
+            Boolean deleteResult = stringRedisTemplate.delete(token);
             // 如果Redis删除成功，则记录成功日志并返回成功结果
             if (deleteResult) {
-                log.info("用户登出成功: {}", redisKey);
+                log.info("用户登出成功: {}", token);
                 return Result.success(MessageConstant.LOGOUT + MessageConstant.SUCCESS);
             } else {
                 // 如果Redis删除失败，则记录警告日志并返回失败结果
-                log.warn("用户登出失败: {}", redisKey);
+                log.warn("用户登出失败: {}", token);
                 return Result.error(MessageConstant.LOGOUT + MessageConstant.FAILED);
             }
         } catch (Exception e) {

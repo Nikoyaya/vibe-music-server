@@ -105,8 +105,7 @@ public class AdminServiceImpl extends ServiceImpl<AdminMapper, Admin> implements
             log.info("token生成，admin ID: {}", admin.getAdminId());
 
             // 将token存入Redis，设置6小时过期
-            // 注意：这里的key使用了用户名和adminId的组合，确保唯一性(这个key可以自己修改，只是我调试方便这样设计而已，也可以直接用token为key也行)
-            stringRedisTemplate.opsForValue().set(admin.getUsername() + "(" + admin.getAdminId() + ")", token, 6, TimeUnit.HOURS);
+            stringRedisTemplate.opsForValue().set(token, token, 6, TimeUnit.HOURS);
             log.info("Token stored in Redis with 6 hours expiration");
 
             // 返回成功结果和token
@@ -128,26 +127,11 @@ public class AdminServiceImpl extends ServiceImpl<AdminMapper, Admin> implements
     @Override
     public Result logout(String token) {
         log.info("token: {}", token);
-
-        try {
-            // 解析token获取claims
-            String redisKey = JwtUtil.getRedisKeyByToken(RoleEnum.ADMIN.getRole(), token);
-
-            // 从Redis中删除token
-            Boolean deleteResult = stringRedisTemplate.delete(redisKey);
-
-            // 判断删除结果
-            if (deleteResult) {
-                // 如果删除成功，记录成功日志并返回成功结果
-                log.info("token从Redis删除成功，登出成功");
-                return Result.success(MessageConstant.LOGOUT + MessageConstant.SUCCESS);
-            } else {
-                // 如果删除失败，记录失败日志并返回失败结果
-                log.warn("token从Redis删除失败，登出失败");
-                return Result.error(MessageConstant.LOGOUT + MessageConstant.FAILED);
-            }
-        } catch (Exception e) {
-            log.error("解析token失败，登出失败", e);
+        // 注销token
+        Boolean result = stringRedisTemplate.delete(token);
+        if (result) {
+            return Result.success(MessageConstant.LOGOUT + MessageConstant.SUCCESS);
+        } else {
             return Result.error(MessageConstant.LOGOUT + MessageConstant.FAILED);
         }
     }
