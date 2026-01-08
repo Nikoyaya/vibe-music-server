@@ -58,7 +58,6 @@ public class AdminController {
             log.warn("管理员登录校验失败: {}", errorMessage);
             return Result.error(errorMessage);
         }
-        log.info("管理员登录成功: {}", adminDTO.getUsername());
         return adminService.login(adminDTO);
 
     }
