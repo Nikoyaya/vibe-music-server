@@ -3,6 +3,9 @@ package org.amis.vibemusicserver.controller;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.amis.vibemusicserver.model.dto.AdminDTO;
+import org.amis.vibemusicserver.model.dto.UserSearchDTO;
+import org.amis.vibemusicserver.model.vo.UserManagementVO;
+import org.amis.vibemusicserver.result.PageResult;
 import org.amis.vibemusicserver.result.Result;
 import org.amis.vibemusicserver.service.IAdminService;
 import org.amis.vibemusicserver.service.IUserService;
@@ -10,6 +13,8 @@ import org.amis.vibemusicserver.utils.BindingResultUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * @author : KwokChichung
@@ -89,5 +94,15 @@ public class AdminController {
         return userService.getAllUsersCount();
     }
 
+    /**
+     * 获取所有用户信息
+     *
+     * @param userSearchDTO 用户搜索条件
+     * @return 结果
+     */
+    @PostMapping("/getAllUsers")
+    public Result<PageResult<UserManagementVO>> getAllUsers(@RequestBody UserSearchDTO userSearchDTO) {
+        return userService.getAllUsers(userSearchDTO);
+    }
 }
 

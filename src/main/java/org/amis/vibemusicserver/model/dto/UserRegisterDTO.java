@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 import org.amis.vibemusicserver.constant.MessageConstant;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 /**
@@ -15,6 +16,8 @@ import java.io.Serializable;
  */
 @Data
 public class UserRegisterDTO implements Serializable {
+
+    @Serial
     private static final long serialVersionUID = 1L;
 
     /**

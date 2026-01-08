@@ -1,17 +1,20 @@
 package org.amis.vibemusicserver.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.amis.vibemusicserver.constant.JwtClaimsConstant;
 import org.amis.vibemusicserver.constant.MessageConstant;
-import org.amis.vibemusicserver.enumeration.ResultCodeEnum;
 import org.amis.vibemusicserver.enumeration.RoleEnum;
 import org.amis.vibemusicserver.enumeration.UserStatusEnum;
 import org.amis.vibemusicserver.mapper.UserMapper;
 import org.amis.vibemusicserver.model.dto.*;
 import org.amis.vibemusicserver.model.entity.User;
+import org.amis.vibemusicserver.model.vo.UserManagementVO;
 import org.amis.vibemusicserver.model.vo.UserVO;
+import org.amis.vibemusicserver.result.PageResult;
 import org.amis.vibemusicserver.result.Result;
 import org.amis.vibemusicserver.service.IUserService;
 import org.amis.vibemusicserver.utils.JwtUtil;
@@ -20,12 +23,15 @@ import org.amis.vibemusicserver.utils.TypeConversionUtil;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -494,6 +500,80 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     public Result<Long> getAllUsersCount() {
         Long count = userMapper.selectCount(new QueryWrapper<>());
         return Result.success(count);
+    }
+
+    /**
+     * 分页查询所有用户
+     *
+     * @param userSearchDTO 用户搜索条件
+     * @return 分页信息的结果
+     */
+    @Override
+    @Cacheable(cacheNames = "userCache", key = "#userSearchDTO.pageNum.toString() + '-' + #userSearchDTO.pageSize.toString() + '-' + (#userSearchDTO.username != null ? #userSearchDTO.username : 'null') + '-' + (#userSearchDTO.phone != null ? #userSearchDTO.phone : 'null') + '-' + (#userSearchDTO.userStatus != null ? #userSearchDTO.userStatus.toString() : 'null')")
+    public Result<PageResult<UserManagementVO>> getAllUsers(UserSearchDTO userSearchDTO) {
+        // 创建分页对象，设置当前页码和每页大小
+        Page<User> page = new Page<>(userSearchDTO.getPageNum(), userSearchDTO.getPageSize());
+        // 创建查询条件构造器
+        QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
+
+        // 根据用户名条件构建模糊查询
+        if (userSearchDTO.getUsername() != null && !userSearchDTO.getUsername().isEmpty()) {
+            userQueryWrapper.like("username", userSearchDTO.getUsername());
+        }
+        // 根据手机号条件构建模糊查询
+        if (userSearchDTO.getPhone() != null && !userSearchDTO.getPhone().isEmpty()) {
+            userQueryWrapper.like("phone", userSearchDTO.getPhone());
+        }
+        // 根据用户状态条件构建精确查询
+        if (userSearchDTO.getUserStatus() != null) {
+            userQueryWrapper.eq("status", userSearchDTO.getUserStatus().getCode());
+        }
+
+        // 按创建时间降序排序
+        userQueryWrapper.orderByDesc("create_time");
+
+        // 执行分页查询
+        IPage<User> userPage = userMapper.selectPage(page, userQueryWrapper);
+        // 处理查询结果为空的情况
+        if (userPage.getRecords().isEmpty()) {
+            return Result.success(MessageConstant.DATA_NOT_FOUND, new PageResult<>(0L, Collections.emptyList()));
+        }
+
+        // 将User实体列表转换为UserManagementVO列表
+        List<UserManagementVO> userVOList = userPage.getRecords().stream().map(
+                user -> {
+                    UserManagementVO userManagementVO = new UserManagementVO();
+                    BeanUtils.copyProperties(user, userManagementVO);
+                    return userManagementVO;
+                }
+        ).toList();
+        // 返回分页结果
+        return Result.success(new PageResult<>(userPage.getTotal(), userVOList));
+    }
+
+    @Override
+    public Result addUser(UserAddDTO userAddDTO) {
+        return null;
+    }
+
+    @Override
+    public Result updateUser(UserDTO userDTO) {
+        return null;
+    }
+
+    @Override
+    public Result updateUserStatus(Long userId, Integer userStatus) {
+        return null;
+    }
+
+    @Override
+    public Result deleteUser(Long userId) {
+        return null;
+    }
+
+    @Override
+    public Result deleteUsers(List<Long> userIds) {
+        return null;
     }
 }
 
