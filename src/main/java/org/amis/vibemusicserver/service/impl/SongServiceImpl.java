@@ -65,13 +65,15 @@ public class SongServiceImpl extends ServiceImpl<SongMapper, Song> implements IS
      * @return 歌曲列表
      */
     @Override
-    @Cacheable(cacheNames = "songCache", key = "#songDTO.pageNum.toString() + '-' + #songDTO.pageSize.toString() + '-' + #songDTO.songName + '-' + #songDTO.artistName + '-' + #songDTO.album")
+    @Cacheable(key = "#songDTO.pageNum.toString() + '-' + #songDTO.pageSize.toString() + '-' + #songDTO.songName + '-' + #songDTO.artistName + '-' + #songDTO.album")
     public Result<PageResult<SongVO>> getAllSongs(SongDTO songDTO, HttpServletRequest request) {
+        // 从请求头中获取token
         String token = request.getHeader("Authorization");
         if (token != null && token.startsWith("Bearer ")) {
             token = token.substring(7);
         }
 
+        // 解析token获取用户信息
         Map<String, Object> map = null;
         if (token != null && !token.isEmpty()) {
             map = JwtUtil.parseToken(token);
@@ -84,15 +86,17 @@ public class SongServiceImpl extends ServiceImpl<SongMapper, Song> implements IS
             return Result.success(MessageConstant.DATA_NOT_FOUND, new PageResult<>(0L, null));
         }
 
-        // 设置默认的状态
+        // 设置默认的点赞状态为未点赞
         List<SongVO> songVOList = songPage.getRecords()
                 .stream()
                 .peek(songVO -> songVO.setLikeStatus(LikeStatusEnum.DEFAULT.getCode())) //默认状态为：0
                 .toList();
 
+        // 如果用户已登录，处理个性化点赞状态
         if (map != null) {
             String role = (String) map.get(JwtClaimsConstant.ROLE);
 
+            // 只处理普通用户的点赞状态
             if (role.equals(RoleEnum.USER.getRole())) {
                 Object userIdObj = map.get(JwtClaimsConstant.USER_ID);
                 Long userId = TypeConversionUtil.toLong(userIdObj);
@@ -117,9 +121,24 @@ public class SongServiceImpl extends ServiceImpl<SongMapper, Song> implements IS
         return Result.success(new PageResult<>(page.getTotal(), songVOList));
     }
 
+    /**
+     * 获取歌手的所有歌曲
+     *
+     * @param songDTO songAndArtistDTO 歌手和歌曲DTO
+     * @return 歌曲列表
+     */
     @Override
-    public Result<PageResult<SongAdminVO>> getAllSongsByArtist(SongAndArtistDTO songDTO) {
-        return null;
+    @Cacheable(key = "#songAndArtistDTO.pageNum.toString() + '-' + #songAndArtistDTO.pageSize.toString() + '-' + #songAndArtistDTO.songName + '-' + #songAndArtistDTO.album + '-' + #songAndArtistDTO.artistId.toString()")
+    public Result<PageResult<SongAdminVO>> getAllSongsByArtist(SongAndArtistDTO songAndArtistDTO) {
+        // 分页查询
+        Page<SongAdminVO> page = new Page<>(songAndArtistDTO.getPageNum(), songAndArtistDTO.getPageSize());
+        IPage<SongAdminVO> songPage = songMapper.getSongsWithArtistName(page, songAndArtistDTO.getArtistId(), songAndArtistDTO.getSongName(), songAndArtistDTO.getAlbum());
+
+        if (songPage.getRecords().isEmpty()) {
+            return Result.success(MessageConstant.DATA_NOT_FOUND, new PageResult<>(0L, null));
+        }
+
+        return Result.success(new PageResult<>(songPage.getTotal(), songPage.getRecords()));
     }
 
     @Override
