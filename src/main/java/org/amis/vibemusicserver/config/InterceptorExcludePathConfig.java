@@ -25,6 +25,9 @@ public class InterceptorExcludePathConfig {
                 "/user/login", "/user/logout", "/user/register",
                 "/user/sendVerificationCode", "/user/resetUserPassword",
 
+                //token
+                "/token/refresh",
+
                 // 公共内容相关
                 "/banner/getBannerList",
 

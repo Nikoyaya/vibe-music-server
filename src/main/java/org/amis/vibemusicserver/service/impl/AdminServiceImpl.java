@@ -8,6 +8,7 @@ import org.amis.vibemusicserver.constant.MessageConstant;
 import org.amis.vibemusicserver.enumeration.RoleEnum;
 import org.amis.vibemusicserver.mapper.AdminMapper;
 import org.amis.vibemusicserver.model.dto.AdminDTO;
+import org.amis.vibemusicserver.model.dto.TokenDTO;
 import org.amis.vibemusicserver.model.entity.Admin;
 import org.amis.vibemusicserver.result.Result;
 import org.amis.vibemusicserver.service.IAdminService;
@@ -94,12 +95,43 @@ public class AdminServiceImpl extends ServiceImpl<AdminMapper, Admin> implements
 
         // 验证密码是否正确
         if (DigestUtils.md5DigestAsHex(adminDTO.getPassword().getBytes()).equals(admin.getPassword())) {
-            // 单点登录控制：先查找并删除旧的token
+            // 单点登录控制：清理旧会话的所有token
             String adminTokenKey = "admin_token:" + admin.getAdminId();
-            String oldToken = stringRedisTemplate.opsForValue().get(adminTokenKey);
-            if (oldToken != null) {
-                stringRedisTemplate.delete(oldToken); // 删除旧的token记录
-                log.info("删除旧的token，实现单点登录控制，admin ID: {}", admin.getAdminId());
+            String oldRefreshToken = stringRedisTemplate.opsForValue().get(adminTokenKey);
+            if (oldRefreshToken != null) {
+                try {
+                    // 1. 解析旧refresh_token获取关联的access_token
+                    Map<String, Object> oldClaims = JwtUtil.parseToken(oldRefreshToken);
+                    String oldAccessToken = (String) oldClaims.get("linked_access_token");
+
+                    // 2. 双重保险：从Redis获取可能关联的access_token
+                    String redisAccessToken = stringRedisTemplate.opsForValue().get("access_token:" + oldRefreshToken);
+
+                    // 3. 清理所有可能存在的旧token
+                    if (oldAccessToken != null) {
+                        stringRedisTemplate.delete(oldAccessToken);
+                        log.info("已删除claims中的旧access_token: {}", oldAccessToken);
+                    }
+                    if (redisAccessToken != null && !redisAccessToken.equals(oldAccessToken)) {
+                        stringRedisTemplate.delete(redisAccessToken);
+                        log.info("已删除Redis中关联的旧access_token: {}", redisAccessToken);
+                    }
+
+                    // 4. 删除旧的refresh_token
+                    stringRedisTemplate.delete(oldRefreshToken);
+                    log.info("已删除旧refresh_token: {}", oldRefreshToken);
+
+                    // 5. 清理SSO控制记录和关联键
+                    stringRedisTemplate.delete(adminTokenKey);
+                    stringRedisTemplate.delete("access_token:" + oldRefreshToken);
+
+                    log.info("已完全清理旧会话Token，admin ID: {}", admin.getAdminId());
+                } catch (Exception e) {
+                    log.error("清理旧Token失败，执行强制清理，admin ID: {}", admin.getAdminId(), e);
+                    // 强制清理所有可能的残留token
+                    stringRedisTemplate.delete(adminTokenKey);
+                    stringRedisTemplate.delete(oldRefreshToken);
+                }
             }
 
             // 创建JWT的claims（声明）
@@ -108,18 +140,32 @@ public class AdminServiceImpl extends ServiceImpl<AdminMapper, Admin> implements
             claims.put(JwtClaimsConstant.USERNAME, admin.getUsername());
             claims.put(JwtClaimsConstant.ROLE, RoleEnum.ADMIN.getRole());
 
-            // 生成JWT token
-            String token = JwtUtil.generateToken(claims);
-            log.info("token生成，admin ID: {}", admin.getAdminId());
+            // 生成双Token
+            String accessToken = JwtUtil.generateAccessToken(claims);
+            String refreshToken = JwtUtil.generateRefreshToken(claims);
+            log.info("双Token生成完成，admin ID: {}", admin.getAdminId());
 
-            // 将token存入Redis，设置6小时过期
-            stringRedisTemplate.opsForValue().set(token, token, 6, TimeUnit.HOURS);
-            // 存储用户ID与token的映射关系，用于单点登录控制
-            stringRedisTemplate.opsForValue().set(adminTokenKey, token, 6, TimeUnit.HOURS);
-            log.info("Token stored in Redis with 6 hours expiration");
+            // 存储双Token到Redis并建立双重关联
+            stringRedisTemplate.opsForValue().set(accessToken, accessToken, 6, TimeUnit.HOURS);
+            stringRedisTemplate.opsForValue().set(refreshToken, refreshToken, 15, TimeUnit.DAYS);
 
-            // 返回成功结果和token
-            return Result.success(MessageConstant.LOGIN + MessageConstant.SUCCESS, token);
+            // 建立双向关联：1.在claims中记录
+            claims.put("linked_access_token", accessToken);
+            // 2.在Redis中建立反向映射
+            stringRedisTemplate.opsForValue().set(
+                "access_token:" + refreshToken,
+                accessToken,
+                15, TimeUnit.DAYS
+            );
+
+            // 使用refresh_token控制单点登录
+            stringRedisTemplate.opsForValue().set(adminTokenKey, refreshToken, 15, TimeUnit.DAYS);
+
+            log.info("双Token存储到Redis完成，使用refresh_token控制单点登录");
+
+            // 返回成功结果和双Token
+            return Result.success(MessageConstant.LOGIN + MessageConstant.SUCCESS,
+                new TokenDTO(accessToken, refreshToken));
         }
 
         // 密码验证失败，返回错误信息
@@ -137,7 +183,10 @@ public class AdminServiceImpl extends ServiceImpl<AdminMapper, Admin> implements
     @Override
     public Result logout(String token) {
         log.info("token: {}", token);
-        // 注销token
+        // 注销token及SSO控制记录
+        Map<String, Object> claims = JwtUtil.parseToken(token);
+        Integer adminId = (Integer) claims.get(JwtClaimsConstant.ADMIN_ID);
+        stringRedisTemplate.delete("admin_token:" + adminId);
         Boolean result = stringRedisTemplate.delete(token);
         if (result) {
             return Result.success(MessageConstant.LOGOUT + MessageConstant.SUCCESS);

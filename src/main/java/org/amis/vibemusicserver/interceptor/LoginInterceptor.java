@@ -133,6 +133,15 @@ public class LoginInterceptor implements HandlerInterceptor {
         }
 
         try {
+            // 检查是否为access_token (拒绝refresh_token直接访问接口)
+            if (JwtUtil.isRefreshToken(token)) {
+                if (isDevOrLocal) {
+                    log.warn("拒绝refresh_token直接访问接口: {}", token);
+                }
+                sendErrorResponse(response, ResultCodeEnum.TOKEN_INVALID.getCode(), "请使用access_token访问接口");
+                return false;
+            }
+
             // 从redis中获取相同的token验证有效性
             ValueOperations<String, String> operations = stringRedisTemplate.opsForValue();
             String redisToken = operations.get(token);
