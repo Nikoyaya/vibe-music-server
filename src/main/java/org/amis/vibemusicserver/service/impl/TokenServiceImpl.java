@@ -1,5 +1,6 @@
 package org.amis.vibemusicserver.service.impl;
 
+import org.amis.vibemusicserver.constant.MessageConstant;
 import org.amis.vibemusicserver.model.dto.TokenDTO;
 import org.amis.vibemusicserver.model.dto.TokenRefreshDTO;
 import org.amis.vibemusicserver.result.Result;
@@ -22,7 +23,7 @@ public class TokenServiceImpl implements TokenService {
 
         // 验证refresh_token有效性
         if (!JwtUtil.isRefreshToken(refreshToken)) {
-            throw new RuntimeException("无效的refresh token");
+            throw new RuntimeException(MessageConstant.TOKEN + MessageConstant.INVALID);
         }
 
         // 解析用户信息
