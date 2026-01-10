@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.amis.vibemusicserver.mapper.UserFavoriteMapper">
+
+    <!-- 查询用户收藏的所有歌曲ID -->
+    <select id="getUserFavoriteSongIds" resultType="java.lang.Long">
+        SELECT song_id
+        FROM tb_user_favorite
+        WHERE user_id = #{userId} AND type = 0
+        ORDER BY create_time DESC
+    </select>
+
+    <!-- 查询用户收藏的所有歌单ID -->
+    <select id="getUserFavoritePlaylistIds" resultType="java.lang.Long">
+        SELECT playlist_id
+        FROM tb_user_favorite
+        WHERE user_id = #{userId} AND type = 1
+        ORDER BY create_time DESC
+    </select>
+
+    <!-- 查询用户收藏的所有歌曲ID -->
+    <select id="getFavoriteSongIdsByUserId" resultType="java.lang.Long">
+        SELECT song_id
+        FROM tb_user_favorite
+        WHERE user_id = #{userId} AND type = 0
+    </select>
+
+    <!-- 查询用户收藏的所有歌单ID -->
+    <select id="getFavoritePlaylistIdsByUserId" resultType="java.lang.Long">
+        SELECT playlist_id
+        FROM tb_user_favorite
+        WHERE user_id = #{userId} AND type = 1
+    </select>
+
+    <!-- 查询根据 favoriteStyle 获取对应的 ID -->
+    <select id="getFavoriteIdsByStyle" resultType="java.lang.Long">
+        SELECT id
+        FROM tb_playlist
+        WHERE style IN
+        <foreach collection="favoriteStyles" item="style" open="(" close=")" separator=",">
+            #{style}
+        </foreach>
+    </select>
+
+</mapper>

@@ -32,9 +32,12 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -141,9 +144,85 @@ public class SongServiceImpl extends ServiceImpl<SongMapper, Song> implements IS
         return Result.success(new PageResult<>(songPage.getTotal(), songPage.getRecords()));
     }
 
+
+    /**
+     * 获取推荐歌曲
+     * 默认推荐数量：20
+     *
+     * @param request 请求对象，用来获取请求头中的token
+     * @return 推荐歌曲列表
+     */
     @Override
     public Result<List<SongVO>> getRecommendedSongs(HttpServletRequest request) {
-        return null;
+        // 从请求头中获取token
+        String token = request.getHeader("Authorization");
+        if (token != null && token.startsWith("Bearer ")) {
+            token = token.substring(7);
+        }
+
+        // 解析token获取用户信息
+        Map<String, Object> map = null;
+        if (token != null && !token.isEmpty()) {
+            map = JwtUtil.parseToken(token);
+        }
+
+        // 如果用户未登录，直接返回随机推荐歌曲
+        if (map == null) {
+            return Result.success(songMapper.getRandomSongsWithArtist());
+        }
+
+        // 获取用户 ID
+        Long userId = TypeConversionUtil.toLong(map.get(JwtClaimsConstant.USER_ID));
+
+        // 查询用户收藏的歌曲 ID
+        List<Long> favoriteSongIds = userFavoriteMapper.getFavoriteSongIdsByUserId(userId);
+        if (favoriteSongIds.isEmpty()) {
+            return Result.success(songMapper.getRandomSongsWithArtist());
+        }
+
+        // 获取用户喜欢的歌曲的风格id，并统计每个风格的出现次数
+        List<Long> favoriteSongStylesId = songMapper.getFavoriteSongStyles(favoriteSongIds);
+        Map<Long, Long> styleFrequency = favoriteSongStylesId.stream()
+                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+
+        // 根据风格的出现次数进行排序，并获取前20个最受欢迎的风格id
+        List<Long> sortedStyleId = styleFrequency.entrySet().stream()
+                .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
+                .map(Map.Entry::getKey)
+                .toList();
+
+        // 从Redis获取缓存的推荐歌曲
+        String redisKey = "recommended_songs_" + userId;
+        List<SongVO> cachedSongs = redisTemplate.opsForList().range(redisKey, 0, -1);
+
+        // 如果没有缓存，从数据库获取推荐歌曲并缓存
+        if (cachedSongs == null || cachedSongs.isEmpty()) {
+            cachedSongs = songMapper.getRecommendedSongsByStyles(sortedStyleId, favoriteSongIds, 80);
+            redisTemplate.opsForList().rightPushAll(redisKey, cachedSongs);
+            redisTemplate.expire(redisKey, 30, TimeUnit.MINUTES);
+        }
+
+        // 随机打乱缓存歌曲，取前20首
+        Collections.shuffle(cachedSongs);
+        List<SongVO> recommendedSongs = cachedSongs.subList(0, Math.min(20, cachedSongs.size()));
+
+        // 如果推荐歌曲不足20首，补充随机歌曲
+        if (recommendedSongs.size() < 20) {
+            List<SongVO> randomSongs = songMapper.getRandomSongsWithArtist();
+            Set<Long> addSongIds = recommendedSongs.stream()
+                    .map(SongVO::getSongId)
+                    .collect(Collectors.toSet());
+
+            for (SongVO songVO : randomSongs) {
+                if (randomSongs.size() >= 20) {
+                    break;
+                }
+                if (!addSongIds.contains(songVO.getSongId())) {
+                    recommendedSongs.add(songVO);
+                }
+            }
+        }
+        return Result.success(recommendedSongs);
     }
 
     @Override
