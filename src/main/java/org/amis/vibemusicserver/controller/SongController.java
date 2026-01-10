@@ -9,9 +9,12 @@ import org.amis.vibemusicserver.result.PageResult;
 import org.amis.vibemusicserver.result.Result;
 import org.amis.vibemusicserver.service.ISongService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * @author : KwokChichung
@@ -38,5 +41,16 @@ public class SongController {
 
     }
 
+    /**
+     * 获取推荐歌曲
+     * 推荐歌曲的数量为 20
+     *
+     * @param request 请求
+     * @return 推荐歌曲列表
+     */
+    @GetMapping("/getRecommendedSongs")
+    public Result<List<SongVO>> getRecommendedSongs(HttpServletRequest request) {
+        return songService.getRecommendedSongs(request);
+    }
 }
 
