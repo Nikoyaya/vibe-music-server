@@ -1,7 +1,9 @@
 package org.amis.vibemusicserver.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.amis.vibemusicserver.model.dto.SongAndArtistDTO;
 import org.amis.vibemusicserver.model.dto.SongDTO;
+import org.amis.vibemusicserver.model.vo.SongAdminVO;
 import org.amis.vibemusicserver.model.vo.SongVO;
 import org.amis.vibemusicserver.result.PageResult;
 import org.amis.vibemusicserver.result.Result;
@@ -25,6 +27,7 @@ public class SongController {
 
     /**
      * 获取所有歌曲
+     *
      * @param songDTO 歌曲查询条件
      * @param request 请求对象
      * @return 歌曲分页结果
@@ -34,5 +37,6 @@ public class SongController {
         return songService.getAllSongs(songDTO, request);
 
     }
+
 }
 

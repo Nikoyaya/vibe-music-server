@@ -2,14 +2,13 @@ package org.amis.vibemusicserver.controller;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
-import org.amis.vibemusicserver.model.dto.AdminDTO;
-import org.amis.vibemusicserver.model.dto.UserAddDTO;
-import org.amis.vibemusicserver.model.dto.UserDTO;
-import org.amis.vibemusicserver.model.dto.UserSearchDTO;
+import org.amis.vibemusicserver.model.dto.*;
+import org.amis.vibemusicserver.model.vo.SongAdminVO;
 import org.amis.vibemusicserver.model.vo.UserManagementVO;
 import org.amis.vibemusicserver.result.PageResult;
 import org.amis.vibemusicserver.result.Result;
 import org.amis.vibemusicserver.service.IAdminService;
+import org.amis.vibemusicserver.service.ISongService;
 import org.amis.vibemusicserver.service.IUserService;
 import org.amis.vibemusicserver.utils.BindingResultUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +32,9 @@ public class AdminController {
 
     @Autowired
     private IUserService userService;
+
+    @Autowired
+    private ISongService songService;
 
 
     /**
@@ -178,5 +180,15 @@ public class AdminController {
     //**********************************************************************************************/
 
 
+    /**
+     * 根据歌手id获取歌曲
+     *
+     * @param songAndArtistDTO 歌手id和歌曲查询条件
+     * @return 歌曲分页结果
+     */
+    @PostMapping("/getAllSongsByArtist")
+    public Result<PageResult<SongAdminVO>> getAllSongsByArtist(@RequestBody SongAndArtistDTO songAndArtistDTO) {
+        return songService.getAllSongsByArtist(songAndArtistDTO);
+    }
 }
 

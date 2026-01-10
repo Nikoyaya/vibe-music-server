@@ -124,7 +124,7 @@ public class SongServiceImpl extends ServiceImpl<SongMapper, Song> implements IS
     /**
      * 获取歌手的所有歌曲
      *
-     * @param songDTO songAndArtistDTO 歌手和歌曲DTO
+     * @param SongAndArtistDTO songAndArtistDTO 歌手和歌曲DTO
      * @return 歌曲列表
      */
     @Override
