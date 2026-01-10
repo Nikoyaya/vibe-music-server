@@ -288,38 +288,60 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         // 将用户ID转换为Long类型
         Long userId = TypeConversionUtil.toLong(userIdObj);
 
-        // 检查用户名是否已被其他用户使用
-        User userByUsername = userMapper.selectOne(new QueryWrapper<User>()
-                .eq("username", userDTO.getUsername()));
-        if (userByUsername != null && !userByUsername.getId().equals(userId)) {
-            log.error(MessageConstant.USERNAME + MessageConstant.ALREADY_EXISTS);
-            return Result.error(MessageConstant.USERNAME + MessageConstant.ALREADY_EXISTS);
+        // 获取当前用户信息用于比较
+        User currentUser = userMapper.selectById(userId);
+
+        // 检查用户名是否已被其他用户使用（只有当用户名发生改变时检查）
+        if (!userDTO.getUsername().equals(currentUser.getUsername())) {
+            User userByUsername = userMapper.selectOne(new QueryWrapper<User>()
+                    .eq("username", userDTO.getUsername()));
+            if (userByUsername != null && !userByUsername.getId().equals(userId)) {
+                log.error(MessageConstant.USERNAME + MessageConstant.ALREADY_EXISTS);
+                return Result.error(MessageConstant.USERNAME + MessageConstant.ALREADY_EXISTS);
+            }
         }
 
-        // 检查手机号是否已被其他用户使用
-        User userByPhone = userMapper.selectOne(new QueryWrapper<User>()
-                .eq("phone", userDTO.getPhone()));
-        if (userByPhone != null && !userByPhone.getId().equals(userId)) {
-            log.error(MessageConstant.PHONE + MessageConstant.ALREADY_EXISTS);
-            return Result.error(MessageConstant.PHONE + MessageConstant.ALREADY_EXISTS);
+        // 检查手机号是否已被其他用户使用（只有当手机号不为null且发生改变时检查）
+        if (userDTO.getPhone() != null && !userDTO.getPhone().equals(currentUser.getPhone())) {
+            User userByPhone = userMapper.selectOne(new QueryWrapper<User>()
+                    .eq("phone", userDTO.getPhone()));
+            if (userByPhone != null && !userByPhone.getId().equals(userId)) {
+                log.error(MessageConstant.PHONE + MessageConstant.ALREADY_EXISTS);
+                return Result.error(MessageConstant.PHONE + MessageConstant.ALREADY_EXISTS);
+            }
         }
 
-        // 检查邮箱是否已被其他用户使用
-        User userByEmail = userMapper.selectOne(new QueryWrapper<User>()
-                .eq("email", userDTO.getEmail()));
-        if (userByEmail != null && !userByEmail.getId().equals(userId)) {
-            log.error(MessageConstant.EMAIL + MessageConstant.ALREADY_EXISTS);
-            return Result.error(MessageConstant.EMAIL + MessageConstant.ALREADY_EXISTS);
+        // 检查邮箱是否已被其他用户使用（只有当邮箱不为null且发生改变时检查）
+        if (userDTO.getEmail() != null && !userDTO.getEmail().equals(currentUser.getEmail())) {
+            User userByEmail = userMapper.selectOne(new QueryWrapper<User>()
+                    .eq("email", userDTO.getEmail()));
+            if (userByEmail != null && !userByEmail.getId().equals(userId)) {
+                log.error(MessageConstant.EMAIL + MessageConstant.ALREADY_EXISTS);
+                return Result.error(MessageConstant.EMAIL + MessageConstant.ALREADY_EXISTS);
+            }
         }
 
-        // 创建用户实体对象并复制DTO属性
+        // 直接使用MyBatis-Plus的更新方法，避免手动创建对象和设置id
         User user = new User();
-        BeanUtils.copyProperties(userDTO, user);
-        // 更新更新时间
         user.setUpdateTime(LocalDateTime.now());
 
+        // 只复制非null字段到更新对象
+        if (userDTO.getUsername() != null) {
+            user.setUsername(userDTO.getUsername());
+        }
+        if (userDTO.getPhone() != null) {
+            user.setPhone(userDTO.getPhone());
+        }
+        if (userDTO.getEmail() != null) {
+            user.setEmail(userDTO.getEmail());
+        }
+        if (userDTO.getIntroduction() != null) {
+            user.setIntroduction(userDTO.getIntroduction());
+        }
+
         // 执行更新操作，检查是否成功
-        if (userMapper.updateById(user) == 0) {
+        int updateCount = userMapper.update(user, new QueryWrapper<User>().eq("id", userId));
+        if (updateCount == 0) {
             log.error(MessageConstant.UPDATE + MessageConstant.FAILED);
             return Result.error(MessageConstant.UPDATE + MessageConstant.FAILED);
         }
@@ -669,30 +691,41 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     @CacheEvict(cacheNames = "userCache", allEntries = true)
     public Result updateUser(UserDTO userDTO) {
         // 获取用户ID和用户名
-        Long userId = userDTO.getUserId();
+        Long userId = userDTO.getId();
         String username = userDTO.getUsername();
 
-        // 检查用户名是否与其他用户重复
-        User userByUsername = userMapper.selectOne(new QueryWrapper<User>().eq("user", username));
-        if (userByUsername != null && userByUsername.getId().equals(userId)) {
-            return Result.error(MessageConstant.USERNAME + MessageConstant.ALREADY_EXISTS);
+        // 获取当前用户信息用于比较
+        User currentUser = userMapper.selectById(userId);
+
+        // 检查用户名是否与其他用户重复（用户名必须提供，并且只有当用户名发生改变时检查）
+        if (!username.equals(currentUser.getUsername())) {
+            User userByUsername = userMapper.selectOne(new QueryWrapper<User>().eq("username", username));
+            if (userByUsername != null && !userByUsername.getId().equals(userId)) {
+                return Result.error(MessageConstant.USERNAME + MessageConstant.ALREADY_EXISTS);
+            }
         }
 
-        // 检查手机号是否与其他用户重复
-        User userByPhone = userMapper.selectOne(new QueryWrapper<User>().eq("phone", userDTO.getPhone()));
-        if (userByPhone != null && userByPhone.getId().equals(userId)) {
-            return Result.error(MessageConstant.PHONE + MessageConstant.ALREADY_EXISTS);
+        // 检查手机号是否与其他用户重复（只有当手机号不为null且发生改变时检查）
+        if (userDTO.getPhone() != null && !userDTO.getPhone().equals(currentUser.getPhone())) {
+            User userByPhone = userMapper.selectOne(new QueryWrapper<User>().eq("phone", userDTO.getPhone()));
+            if (userByPhone != null && !userByPhone.getId().equals(userId)) {
+                return Result.error(MessageConstant.PHONE + MessageConstant.ALREADY_EXISTS);
+            }
         }
 
-        // 检查邮箱是否与其他用户重复
-        User userByEmail = userMapper.selectOne(new QueryWrapper<User>().eq("email", userDTO.getEmail()));
-        if (userByEmail != null && userByEmail.getId().equals(userId)) {
-            return Result.error(MessageConstant.EMAIL + MessageConstant.ALREADY_EXISTS);
+        // 检查邮箱是否与其他用户重复（只有当邮箱不为null且发生改变时检查）
+        if (userDTO.getEmail() != null && !userDTO.getEmail().equals(currentUser.getEmail())) {
+            User userByEmail = userMapper.selectOne(new QueryWrapper<User>().eq("email", userDTO.getEmail()));
+            if (userByEmail != null && !userByEmail.getId().equals(userId)) {
+                return Result.error(MessageConstant.EMAIL + MessageConstant.ALREADY_EXISTS);
+            }
         }
 
         // 创建用户对象并复制属性
         User user = new User();
         BeanUtils.copyProperties(userDTO, user);
+        // 手动设置id，避免BeanUtils.copyProperties将null值复制过来
+        user.setId(userId);
         user.setUpdateTime(LocalDateTime.now());
 
         // 执行更新操作并检查结果

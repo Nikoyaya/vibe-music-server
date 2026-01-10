@@ -23,7 +23,7 @@ public class UserDTO implements Serializable {
     /**
      * 用户 id
      */
-    private Long userId;
+    private Long id;
 
     /**
      * 用户名
@@ -43,7 +43,6 @@ public class UserDTO implements Serializable {
     /**
      * 用户邮箱
      */
-    @NotBlank(message = MessageConstant.EMAIL + MessageConstant.NOT_NULL)
     @Email(message = MessageConstant.EMAIL + MessageConstant.FORMAT_ERROR)
     private String email;
 
