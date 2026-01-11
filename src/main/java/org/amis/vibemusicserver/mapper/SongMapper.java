@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.amis.vibemusicserver.model.entity.Song;
 import org.amis.vibemusicserver.model.vo.SongAdminVO;
+import org.amis.vibemusicserver.model.vo.SongDetailVO;
 import org.amis.vibemusicserver.model.vo.SongVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -76,6 +77,9 @@ public interface SongMapper extends BaseMapper<Song> {
     List<SongVO> getRecommendedSongsByStyles(@Param("sortedStyleIds") List<Long> sortedStyleIds,
                                              @Param("favoriteSongIds") List<Long> favoriteSongIds,
                                              @Param("limit") int limit);
+
+    // 根据id获取歌曲详情
+    SongDetailVO getSongDetailById(Long songId);
 
 }
 

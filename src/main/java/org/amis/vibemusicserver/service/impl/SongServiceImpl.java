@@ -225,9 +225,55 @@ public class SongServiceImpl extends ServiceImpl<SongMapper, Song> implements IS
         return Result.success(recommendedSongs);
     }
 
+
+    /**
+     * 获取歌曲详情
+     *
+     * @param songId  歌曲id
+     * @param request HttpServletRequest，用于获取请求头中的 token
+     * @return 歌曲详情
+     */
     @Override
+    @Cacheable(key = "#songId")
     public Result<SongDetailVO> getSongDetail(Long songId, HttpServletRequest request) {
-        return null;
+        // 根据歌曲ID获取歌曲详情
+        SongDetailVO songDetailVO = songMapper.getSongDetailById(songId);
+
+        // 获取请求头中的 token
+        String token = request.getHeader("Authorization");
+        if (token != null && token.startsWith("Bearer ")) {
+            token = token.substring(7);  // 去掉 "Bearer " 前缀
+        }
+
+        // 解析JWT token获取用户信息
+        Map<String, Object> map = null;
+        if (token != null && !token.isEmpty()) {
+            map = JwtUtil.parseToken(token);
+        }
+
+        // 如果 token 解析成功且用户为登录状态，进一步操作
+        if (map != null) {
+            // 获取用户角色
+            String role = (String) map.get(JwtClaimsConstant.ROLE);
+            // 只处理普通用户的点赞状态
+            if (role.equals(RoleEnum.USER.getRole())) {
+                // 转换用户ID
+                Object userIdObj = map.get(JwtClaimsConstant.USER_ID);
+                Long userId = TypeConversionUtil.toLong(userIdObj);
+
+                // 查询用户是否收藏了该歌曲
+                UserFavorite favoriteSong = userFavoriteMapper.selectOne(new QueryWrapper<UserFavorite>()
+                        .eq("user_id", userId)
+                        .eq("type", 0)
+                        .eq("song_id", songId));
+                // 如果已收藏，设置点赞状态
+                if (favoriteSong != null) {
+                    songDetailVO.setLikeStatus(LikeStatusEnum.LIKE.getCode());
+                }
+            }
+        }
+
+        return Result.success(songDetailVO);
     }
 
     @Override
