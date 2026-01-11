@@ -377,10 +377,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
 
         // 更新用户头像和更新时间
-        int id = userMapper.update(new User().setUserAvatar(avatarUrl).setUpdateTime(LocalDateTime.now()),
+        int updateCount = userMapper.update(new User().setUserAvatar(avatarUrl).setUpdateTime(LocalDateTime.now()),
                 new QueryWrapper<User>().eq("id", userId));
         // 检查更新是否成功
-        if (id == 0) {
+        if (updateCount == 0) {
             log.error(MessageConstant.UPDATE + MessageConstant.FAILED);
             return Result.error(MessageConstant.UPDATE + MessageConstant.FAILED);
         }
