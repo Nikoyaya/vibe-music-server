@@ -1,9 +1,7 @@
 package org.amis.vibemusicserver.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.amis.vibemusicserver.model.dto.SongAndArtistDTO;
 import org.amis.vibemusicserver.model.dto.SongDTO;
-import org.amis.vibemusicserver.model.vo.SongAdminVO;
 import org.amis.vibemusicserver.model.vo.SongDetailVO;
 import org.amis.vibemusicserver.model.vo.SongVO;
 import org.amis.vibemusicserver.result.PageResult;
@@ -34,7 +32,7 @@ public class SongController {
      * @return 歌曲分页结果
      */
     @PostMapping("/getAllSongs")
-    public Result<PageResult<SongVO>> getAllSongs(SongDTO songDTO, HttpServletRequest request) {
+    public Result<PageResult<SongVO>> getAllSongs(@RequestBody SongDTO songDTO, HttpServletRequest request) {
         return songService.getAllSongs(songDTO, request);
 
     }

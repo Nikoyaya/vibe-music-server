@@ -2,6 +2,7 @@ package org.amis.vibemusicserver.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import jakarta.servlet.http.HttpServletRequest;
@@ -276,9 +277,19 @@ public class SongServiceImpl extends ServiceImpl<SongMapper, Song> implements IS
         return Result.success(songDetailVO);
     }
 
+    /**
+     * 获取所有歌曲数量
+     *
+     * @param style 歌曲风格
+     * @return 歌曲数量
+     */
     @Override
     public Result<Long> getAllSongsCount(String style) {
-        return null;
+        QueryWrapper<Song> queryWrapper = new QueryWrapper<>();
+        if (StringUtils.isNotBlank(style)) {
+            queryWrapper.eq("style", style);
+        }
+        return Result.success(songMapper.selectCount(queryWrapper));
     }
 
     @Override
