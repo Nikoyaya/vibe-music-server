@@ -49,7 +49,7 @@
         </collection>
     </resultMap>
 
-    <!-- 根据歌曲名称、艺术家和专辑获取歌曲列表 -->
+    <!-- 根据歌曲名称、歌手和专辑获取歌曲列表 -->
     <select id="getSongsWithArtist" resultMap="SongVOResultMap">
         SELECT s.id           AS songId,
                s.name         AS songName,

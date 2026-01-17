@@ -10,13 +10,17 @@ import org.amis.vibemusicserver.constant.JwtClaimsConstant;
 import org.amis.vibemusicserver.constant.MessageConstant;
 import org.amis.vibemusicserver.enumeration.LikeStatusEnum;
 import org.amis.vibemusicserver.enumeration.RoleEnum;
+import org.amis.vibemusicserver.mapper.GenreMapper;
 import org.amis.vibemusicserver.mapper.SongMapper;
+import org.amis.vibemusicserver.mapper.StyleMapper;
 import org.amis.vibemusicserver.mapper.UserFavoriteMapper;
 import org.amis.vibemusicserver.model.dto.SongAddDTO;
 import org.amis.vibemusicserver.model.dto.SongAndArtistDTO;
 import org.amis.vibemusicserver.model.dto.SongDTO;
 import org.amis.vibemusicserver.model.dto.SongUpdateDTO;
+import org.amis.vibemusicserver.model.entity.Genre;
 import org.amis.vibemusicserver.model.entity.Song;
+import org.amis.vibemusicserver.model.entity.Style;
 import org.amis.vibemusicserver.model.entity.UserFavorite;
 import org.amis.vibemusicserver.model.vo.SongAdminVO;
 import org.amis.vibemusicserver.model.vo.SongDetailVO;
@@ -27,16 +31,15 @@ import org.amis.vibemusicserver.service.ISongService;
 import org.amis.vibemusicserver.service.MinioService;
 import org.amis.vibemusicserver.utils.JwtUtil;
 import org.amis.vibemusicserver.utils.TypeConversionUtil;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -55,6 +58,12 @@ public class SongServiceImpl extends ServiceImpl<SongMapper, Song> implements IS
 
     @Autowired
     private UserFavoriteMapper userFavoriteMapper;
+
+    @Autowired
+    private GenreMapper genreMapper;
+
+    @Autowired
+    private StyleMapper styleMapper;
 
     @Autowired
     private MinioService minioService;
@@ -83,7 +92,7 @@ public class SongServiceImpl extends ServiceImpl<SongMapper, Song> implements IS
             map = JwtUtil.parseToken(token);
         }
 
-        // 分页查询歌曲，并附带艺术家信息
+        // 分页查询歌曲，并附带歌手信息
         Page<SongVO> page = new Page<>(songDTO.getPageNum(), songDTO.getPageSize());
         IPage<SongVO> songPage = songMapper.getSongsWithArtist(page, songDTO.getSongName(), songDTO.getArtistName(), songDTO.getAlbum());
         if (songPage.getRecords().isEmpty()) {
@@ -292,34 +301,217 @@ public class SongServiceImpl extends ServiceImpl<SongMapper, Song> implements IS
         return Result.success(songMapper.selectCount(queryWrapper));
     }
 
+    /**
+     * 添加歌曲信息
+     *
+     * @param songAddDTO 歌曲信息
+     * @return 结果
+     */
     @Override
+    @CacheEvict(cacheNames = "songCache", allEntries = true)
     public Result addSong(SongAddDTO songAddDTO) {
-        return null;
+        Song song = new Song();
+        BeanUtils.copyProperties(songAddDTO, song);
+
+        // 插入歌曲记录
+        if (songMapper.insert(song) == 0) {
+            return Result.error(MessageConstant.ADD + MessageConstant.FAILED);
+        }
+
+        // 获取刚插入的歌曲记录
+        Song songInDB = songMapper.selectOne(new QueryWrapper<Song>()
+                .eq("artist_id", songAddDTO.getArtistId())
+                .eq("name", songAddDTO.getSongName())
+                .eq("album", songAddDTO.getAlbum())
+                .orderByDesc("id")
+                .last("LIMIT 1"));
+
+        if (songInDB == null) {
+            return Result.error(MessageConstant.SONG + MessageConstant.NOT_FOUND);
+        }
+
+        Long songId = songInDB.getSongId();
+
+        // 解析风格字段（多个风格以逗号分隔）
+        String styleStr = songAddDTO.getStyle();
+        if (styleStr != null && !styleStr.isEmpty()) {
+            List<String> styles = Arrays.asList(styleStr.split(","));
+
+            // 查询风格 ID
+            List<Style> styleList = styleMapper.selectList(new QueryWrapper<Style>().in("name", styles));
+
+            // 插入到 tb_genre
+            for (Style style : styleList) {
+                Genre genre = new Genre();
+                genre.setSongId(songId);
+                genre.setStyleId(style.getStyleId());
+                genreMapper.insert(genre);
+            }
+        }
+
+        return Result.success(MessageConstant.ADD + MessageConstant.SUCCESS);
     }
 
+    /**
+     * 更新歌曲信息
+     *
+     * @param songUpdateDTO 歌曲信息
+     * @return 结果
+     */
     @Override
+    @CacheEvict(cacheNames = "songCache", allEntries = true)
     public Result updateSong(SongUpdateDTO songUpdateDTO) {
-        return null;
+        // 查询数据库中是否存在该歌曲
+        Song songInDB = songMapper.selectById(songUpdateDTO.getSongId());
+        if (songInDB == null) {
+            return Result.error(MessageConstant.SONG + MessageConstant.NOT_FOUND);
+        }
+
+        // 更新歌曲基本信息
+        Song song = new Song();
+        BeanUtils.copyProperties(songUpdateDTO, song);
+        if (songMapper.updateById(song) == 0) {
+            return Result.error(MessageConstant.UPDATE + MessageConstant.FAILED);
+        }
+
+        Long songId = songUpdateDTO.getSongId();
+
+        // 删除 tb_genre 中该歌曲的原有风格映射
+        genreMapper.delete(new QueryWrapper<Genre>().eq("song_id", songId));
+
+        // 解析新的风格字段（多个风格以逗号分隔）
+        String styleStr = songUpdateDTO.getStyle();
+        if (styleStr != null && !styleStr.isEmpty()) {
+            List<String> styles = Arrays.asList(styleStr.split(","));
+
+            // 查询风格 ID
+            List<Style> styleList = styleMapper.selectList(new QueryWrapper<Style>().in("name", styles));
+
+            // 插入新的风格映射到 tb_genre
+            for (Style style : styleList) {
+                Genre genre = new Genre();
+                genre.setSongId(songId);
+                genre.setStyleId(style.getStyleId());
+                genreMapper.insert(genre);
+            }
+        }
+
+        return Result.success(MessageConstant.UPDATE + MessageConstant.SUCCESS);
     }
 
+    /**
+     * 更新歌曲封面
+     *
+     * @param songId   歌曲id
+     * @param coverUrl 封面url
+     * @return 更新结果
+     */
     @Override
+    @CacheEvict(cacheNames = "songCache", allEntries = true)
     public Result updateSongCover(Long songId, String coverUrl) {
-        return null;
+        Song song = songMapper.selectById(songId);
+        String cover = song.getCoverUrl();
+        if (cover != null && !cover.isEmpty()) {
+            minioService.deleteFile(cover);
+        }
+
+        song.setCoverUrl(coverUrl);
+        if (songMapper.updateById(song) == 0) {
+            return Result.error(MessageConstant.UPDATE + MessageConstant.FAILED);
+        }
+
+        return Result.success(MessageConstant.UPDATE + MessageConstant.SUCCESS);
     }
 
+    /**
+     * 更新歌曲音频
+     *
+     * @param songId   歌曲id
+     * @param audioUrl 音频url
+     * @return 更新结果
+     */
     @Override
+    @CacheEvict(cacheNames = "songCache", allEntries = true)
     public Result updateSongAudio(Long songId, String audioUrl, String duration) {
-        return null;
+        Song song = songMapper.selectById(songId);
+        String audio = song.getAudioUrl();
+        if (audio != null && !audio.isEmpty()) {
+            minioService.deleteFile(audio);
+        }
+
+        song.setAudioUrl(audioUrl).setDuration(duration);
+        if (songMapper.updateById(song) == 0) {
+            return Result.error(MessageConstant.UPDATE + MessageConstant.FAILED);
+        }
+
+        return Result.success(MessageConstant.UPDATE + MessageConstant.SUCCESS);
     }
 
+    /**
+     * 删除歌曲
+     *
+     * @param songId 歌曲id
+     * @return 删除结果
+     */
     @Override
+    @CacheEvict(cacheNames = "songCache", allEntries = true)
     public Result deleteSong(Long songId) {
-        return null;
+        Song song = songMapper.selectById(songId);
+        if (song == null) {
+            return Result.error(MessageConstant.SONG + MessageConstant.NOT_FOUND);
+        }
+        String cover = song.getCoverUrl();
+        String audio = song.getAudioUrl();
+
+        if (cover != null && !cover.isEmpty()) {
+            minioService.deleteFile(cover);
+        }
+        if (audio != null && !audio.isEmpty()) {
+            minioService.deleteFile(audio);
+        }
+
+        if (songMapper.deleteById(songId) == 0) {
+            return Result.error(MessageConstant.DELETE + MessageConstant.FAILED);
+        }
+
+        return Result.success(MessageConstant.DELETE + MessageConstant.SUCCESS);
     }
 
+    /**
+     * 批量删除歌曲
+     *
+     * @param songIds 歌曲id列表
+     * @return 删除结果
+     */
     @Override
+    @CacheEvict(cacheNames = "songCache", allEntries = true)
     public Result deleteSongs(List<Long> songIds) {
-        return null;
+        // 1. 查询歌曲信息，获取歌曲封面 URL 列表
+        List<Song> songs = songMapper.selectByIds(songIds);
+        List<String> coverUrlList = songs.stream()
+                .map(Song::getCoverUrl)
+                .filter(coverUrl -> coverUrl != null && !coverUrl.isEmpty())
+                .toList();
+        List<String> audioUrlList = songs.stream()
+                .map(Song::getAudioUrl)
+                .filter(audioUrl -> audioUrl != null && !audioUrl.isEmpty())
+                .toList();
+
+        // 2. 先删除 MinIO 里的歌曲封面和音频文件
+        for (String coverUrl : coverUrlList) {
+            minioService.deleteFile(coverUrl);
+        }
+        for (String audioUrl : audioUrlList) {
+            minioService.deleteFile(audioUrl);
+        }
+
+        // 3. 删除数据库中的歌曲信息
+        if (songMapper.deleteByIds(songIds) == 0) {
+            return Result.error(MessageConstant.DELETE + MessageConstant.FAILED);
+        }
+
+        return Result.success(MessageConstant.DELETE + MessageConstant.SUCCESS);
     }
+
 }
 

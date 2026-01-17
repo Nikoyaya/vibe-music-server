@@ -35,7 +35,7 @@ public class InterceptorExcludePathConfig {
                 "/playlist/getAllPlaylists", "/playlist/getRecommendedPlaylists",
                 "/playlist/getPlaylistDetail/**",
 
-                // 艺术家相关
+                // 歌手相关
                 "/artist/getAllArtists", "/artist/getArtistDetail/**",
 
                 // 歌曲相关

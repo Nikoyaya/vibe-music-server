@@ -21,13 +21,13 @@ import java.util.List;
 public interface SongMapper extends BaseMapper<Song> {
 
     /**
-     * 根据歌曲名称、艺术家和专辑获取带有艺术家的歌曲列表
+     * 根据歌曲名称、歌手和专辑获取带有歌手的歌曲列表
      *
      * @param page       分页对象
      * @param songName   歌曲名称
-     * @param artistName 艺术家名称
+     * @param artistName 歌手名称
      * @param album      专辑名称
-     * @return 带有艺术家的歌曲列表分页对象
+     * @return 带有歌手的歌曲列表分页对象
      */
 
     IPage<SongVO> getSongsWithArtist(Page<SongVO> page,
@@ -37,13 +37,13 @@ public interface SongMapper extends BaseMapper<Song> {
 
 
     /**
-     * 根据歌手ID、歌曲名称和专辑获取带有艺术家的歌曲列表
+     * 根据歌手ID、歌曲名称和专辑获取带有歌手的歌曲列表
      *
      * @param page     page
      * @param artistId 歌手ID
      * @param songName 歌曲名称
      * @param album    专辑
-     * @return 带有艺术家的歌曲列表分页对象
+     * @return 带有歌手的歌曲列表分页对象
      */
 
     IPage<SongAdminVO> getSongsWithArtistName(Page<SongAdminVO> page,

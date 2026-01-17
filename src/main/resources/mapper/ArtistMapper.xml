@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.amis.vibemusicserver.mapper.ArtistMapper">
+
+    <!-- ArtistVO基本结果映射 -->
+    <resultMap id="ArtistVOResultMap" type="org.amis.vibemusicserver.model.vo.ArtistVO">
+        <id property="artistId" column="artistId"/>
+        <result property="artistName" column="artistName"/>
+        <result property="avatar" column="avatarUrl"/>
+    </resultMap>
+
+    <!-- 根据歌手名称搜索歌手列表 -->
+    <select id="getArtistsByName" resultMap="ArtistVOResultMap">
+        SELECT
+            id AS artistId,
+            name AS artistName,
+            avatar_url AS avatarUrl,
+            description,
+            gender
+        FROM tb_artist
+        WHERE (#{artistName} IS NULL OR name LIKE CONCAT('%', #{artistName}, '%'))
+        ORDER BY name ASC
+    </select>
+
+    <!-- 获取热门歌手列表（按歌曲数量排序） -->
+    <select id="getPopularArtists" resultMap="ArtistVOResultMap">
+        SELECT
+            a.id AS artistId,
+            a.name AS artistName,
+            a.avatar_url AS avatarUrl,
+            a.description,
+            a.gender,
+            COUNT(s.id) AS songCount
+        FROM tb_artist a
+        LEFT JOIN tb_song s ON a.id = s.artist_id
+        GROUP BY a.id, a.name, a.avatar_url, a.description, a.gender
+        ORDER BY songCount DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 根据歌手ID获取歌手详情 -->
+    <select id="getArtistDetailById" resultMap="ArtistVOResultMap">
+        SELECT
+            id AS artistId,
+            name AS artistName,
+            avatar_url AS avatarUrl,
+            description,
+            gender
+        FROM tb_artist
+        WHERE id = #{artistId}
+    </select>
+
+    <!-- 获取所有歌手列表 -->
+    <select id="getAllArtists" resultMap="ArtistVOResultMap">
+        SELECT
+            id AS artistId,
+            name AS artistName,
+            avatar_url AS avatarUrl,
+            description,
+            gender
+        FROM tb_artist
+        ORDER BY name ASC
+    </select>
+
+</mapper>

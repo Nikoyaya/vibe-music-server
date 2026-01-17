@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.amis.vibemusicserver.mapper.UserMapper">
+    <!--
+        用户Mapper XML文件
+        此Mapper接口继承自BaseMapper，已包含通用CRUD操作
+        如需添加自定义SQL查询，请在此处定义
+    -->
+</mapper>
