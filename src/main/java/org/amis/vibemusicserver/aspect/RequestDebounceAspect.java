@@ -7,6 +7,7 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
+import org.amis.vibemusicserver.utils.ThreadLocalUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -14,6 +15,8 @@ import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Map;
 
 /**
  * @author : KwokChichung
@@ -73,14 +76,56 @@ public class RequestDebounceAspect {
      * 生成防抖key
      */
     private String generateDebounceKey(RequestDebounce annotation, ProceedingJoinPoint joinPoint) {
-        String keyPrefix = annotation.key();
-        if (keyPrefix.isEmpty()) {
-            MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-            keyPrefix = signature.getMethod().getName();
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        String methodName = signature.getMethod().getName();
+        String keyPrefix = annotation.key().isEmpty() ? methodName : annotation.key();
+
+        // 获取请求参数信息
+        String paramsHash = generateParamsHash(joinPoint.getArgs());
+
+        // 获取用户信息（如果有）
+        String userInfo = getUserInfo();
+
+        // 构建完整的防抖key
+        return DEBOUNCE_PREFIX + keyPrefix + ":" + userInfo + ":" + paramsHash;
+    }
+
+    /**
+     * 生成请求参数哈希
+     */
+    private String generateParamsHash(Object[] args) {
+        if (args == null || args.length == 0) {
+            return "no_params";
         }
 
-        // 可以在这里添加更多维度，如用户ID、IP地址等
-        return DEBOUNCE_PREFIX + keyPrefix + ":";
+        try {
+            // 简单哈希，避免敏感信息泄漏
+            String paramsStr = Arrays.toString(args);
+            return String.valueOf(paramsStr.hashCode());
+        } catch (Exception e) {
+            return "params_error";
+        }
+    }
+
+    /**
+     * 获取用户标识信息
+     */
+    private String getUserInfo() {
+        try {
+            // 从ThreadLocal中获取用户信息
+            Map<String, Object> claims = ThreadLocalUtil.get();
+            if (claims != null && claims.containsKey("userId")) {
+                Object userId = claims.get("userId");
+                return "user_" + (userId != null ? userId.toString() : "null");
+            }
+
+            // 尝试从请求头中解析JWT token
+            // 这里需要根据实际项目调整，可能需要注入HttpServletRequest
+            return "user_unknown";
+        } catch (Exception e) {
+            log.warn("获取用户信息失败: {}", e.getMessage());
+            return "user_error";
+        }
     }
 
     /**
