@@ -2,6 +2,7 @@ package org.amis.vibemusicserver.controller;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
+import org.amis.vibemusicserver.annotation.RequestDebounce;
 import org.amis.vibemusicserver.constant.MessageConstant;
 import org.amis.vibemusicserver.model.dto.*;
 import org.amis.vibemusicserver.model.vo.UserVO;
@@ -40,6 +41,11 @@ public class UserController {
      * @param email 邮箱
      * @return 结果
      */
+    @RequestDebounce(
+        key = "sendVerificationCode",
+        expire = 60,  // 60秒内防止重复发送
+        message = "验证码发送过于频繁，请1分钟后再试"
+    )
     @GetMapping("/sendVerificationCode")
     public Result sendVerificationCode(@RequestParam @Email String email) {
         return userService.sendVerificationCode(email);

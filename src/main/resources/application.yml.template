@@ -77,3 +77,9 @@ minio:
   accessKey: "your-minio-access-key"
   secretKey: "your-minio-secret-key"
   bucket: your-bucket-name
+
+# 请求防抖配置
+request:
+  debounce:
+    enabled: true  # 是否启用防抖功能
+    default-expire: 60  # 默认防抖时间（秒）

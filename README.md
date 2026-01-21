@@ -450,6 +450,135 @@ public class SongServiceImpl implements SongService {
 - **图片资源**: 封面/头像上传管理
 - **存储管理**: MinIO存储桶配置
 
+### 5. 设备信息管理
+
+- **多端支持**: Android / iOS / Web 三大平台
+- **用户关联**: 自动关联登录用户
+- **设备追踪**: 记录用户设备和IP信息
+- **数据统计**: 统计分析用户设备分布
+
+## 设备信息接口
+
+### 5.1 获取客户端IP和设备信息
+
+**接口地址**: `POST /common/getClientIp`
+
+**请求头**:
+```
+Content-Type: application/json
+Authorization: Bearer {token}
+```
+
+**请求体**:
+```json
+{
+  "clientType": "android",  // android / ios / web
+  "deviceInfo": {
+    "设备型号": "iPhone13,4",
+    "品牌": "Apple",
+    "系统名称": "iOS",
+    "系统版本": "15.4.1"
+  }
+}
+```
+
+**响应示例**:
+```json
+{
+  "code": 0,
+  "message": "成功",
+  "data": {
+    "ip": "192.168.1.100",
+    "username": "user123",
+    "clientType": "android"
+  }
+}
+```
+
+**错误响应**:
+```json
+{
+  "code": 500,
+  "message": "用户未登录"
+}
+```
+
+### 5.2 数据库表结构
+
+系统会自动创建以下三个设备信息表：
+
+- `tb_android_device_info` - Android设备信息
+- `tb_ios_device_info` - iOS设备信息
+- `tb_web_device_info` - Web设备信息
+
+**表结构特点**:
+- 基于 `userId` 和 `deviceType` 的唯一索引
+- 自动记录创建时间和IP地址
+- 支持设备信息的更新和插入
+
+## 接口防抖功能
+
+### 6.1 功能概述
+
+系统提供了基于注解的接口防抖功能，用于防止恶意刷接口、重复提交等场景。
+
+### 6.2 配置项
+
+```yaml
+request:
+  debounce:
+    enabled: true           # 是否启用防抖功能
+    default-expire: 60      # 默认防抖时间（秒）
+```
+
+### 6.3 使用方法
+
+在需要防抖的接口方法上添加 `@RequestDebounce` 注解：
+
+```java
+@RequestDebounce(
+    key = "sendVerificationCode",  // 防抖key
+    expire = 60,                   // 防抖时间（秒）
+    message = "验证码发送过于频繁，请1分钟后再试"  // 错误提示
+)
+@GetMapping("/sendVerificationCode")
+public Result sendVerificationCode(@RequestParam @Email String email) {
+    return userService.sendVerificationCode(email);
+}
+```
+
+### 6.4 注解参数说明
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `key` | String | 否 | 方法名 | 防抖的唯一标识 |
+| `expire` | int | 否 | 配置默认值 | 防抖时间（秒） |
+| `message` | String | 否 | "请求过于频繁" | 拦截时的错误消息 |
+
+### 6.5 已启用防抖的接口
+
+1. **发送验证码** (`/user/sendVerificationCode`)
+   - 防抖时间: 60秒
+   - 错误消息: "验证码发送过于频繁，请1分钟后再试"
+
+2. **获取客户端IP** (`/common/getClientIp`)
+   - 防抖时间: 30秒
+   - 错误消息: "设备信息请求过于频繁，请稍后再试"
+
+### 6.6 工作原理
+
+1. **请求进入**: 接口被调用时，切面会拦截请求
+2. **生成Key**: 根据注解配置的key生成唯一标识
+3. **Redis检查**: 在Redis中检查是否存在该key
+4. **放行/拦截**: 
+   - key不存在：设置key并放行请求
+   - key已存在：直接返回错误，不执行业务逻辑
+5. **自动过期**: Redis key会在指定时间后自动删除
+
+### 6.7 分布式支持
+
+防抖功能基于Redis实现，支持分布式环境下的防抖，确保多实例部署时也能正常工作。
+
 ## 开发指南
 
 ### 代码规范

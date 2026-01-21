@@ -2,14 +2,9 @@ package org.amis.vibemusicserver.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
-import org.amis.vibemusicserver.constant.JwtClaimsConstant;
-import org.amis.vibemusicserver.constant.MessageConstant;
 import org.amis.vibemusicserver.mapper.UserMapper;
-import org.amis.vibemusicserver.model.entity.User;
 import org.amis.vibemusicserver.result.Result;
 import org.amis.vibemusicserver.service.DeviceInfoService;
-import org.amis.vibemusicserver.utils.JwtUtil;
-import org.amis.vibemusicserver.utils.TypeConversionUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -42,7 +37,7 @@ public class CommonController {
      * @return 包含客户端IP和设备信息的结果
      */
     @PostMapping("/getClientIp")
-    public Result<Map<String, Object>> getClientIp(
+    public Result getClientIp(
             HttpServletRequest request,
             @RequestBody Map<String, Object> requestData) {
 
