@@ -81,5 +81,11 @@ public interface SongMapper extends BaseMapper<Song> {
     // 根据id获取歌曲详情
     SongDetailVO getSongDetailById(Long songId);
 
+    // 根据用户收藏的歌曲id列表获取歌曲列表
+    IPage<SongVO> getSongsByIds(Page<SongVO> page,
+                                @Param("songIds") List<Long> songIds,
+                                @Param("songName") String songName,
+                                @Param("artistName") String artistName,
+                                @Param("album") String album);
 }
 

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.amis.vibemusicserver.mapper.WebDeviceInfoMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="org.amis.vibemusicserver.model.entity.WebDeviceInfo">
+        <id column="id" property="id" />
+        <result column="user_id" property="userId" />
+        <result column="username" property="username" />
+        <result column="ip_address" property="ipAddress" />
+        <result column="device_type" property="deviceType" />
+        <result column="create_time" property="createTime" />
+        <result column="browser_name" property="browserName" />
+        <result column="user_agent" property="userAgent" />
+        <result column="app_version" property="appVersion" />
+        <result column="app_code_name" property="appCodeName" />
+        <result column="platform" property="platform" />
+        <result column="vendor" property="vendor" />
+        <result column="language" property="language" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, user_id, username, ip_address, device_type, create_time,
+        browser_name, user_agent, app_version, app_code_name, platform, vendor, language
+    </sql>
+
+</mapper>

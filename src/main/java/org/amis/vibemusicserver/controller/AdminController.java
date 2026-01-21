@@ -3,17 +3,18 @@ package org.amis.vibemusicserver.controller;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.amis.vibemusicserver.model.dto.*;
+import org.amis.vibemusicserver.model.entity.Artist;
+import org.amis.vibemusicserver.model.vo.ArtistNameVO;
 import org.amis.vibemusicserver.model.vo.SongAdminVO;
 import org.amis.vibemusicserver.model.vo.UserManagementVO;
 import org.amis.vibemusicserver.result.PageResult;
 import org.amis.vibemusicserver.result.Result;
-import org.amis.vibemusicserver.service.IAdminService;
-import org.amis.vibemusicserver.service.ISongService;
-import org.amis.vibemusicserver.service.IUserService;
+import org.amis.vibemusicserver.service.*;
 import org.amis.vibemusicserver.utils.BindingResultUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -35,6 +36,12 @@ public class AdminController {
 
     @Autowired
     private ISongService songService;
+
+    @Autowired
+    private IArtistService artistService;
+
+    @Autowired
+    private MinioService minioService;
 
 
     /**
@@ -181,14 +188,191 @@ public class AdminController {
 
 
     /**
-     * 根据歌手id获取歌曲
+     * 获取所有歌手数量
      *
-     * @param songAndArtistDTO 歌手id和歌曲查询条件
-     * @return 歌曲分页结果
+     * @param gender 性别
+     * @param area   地区
+     * @return 歌手数量
+     */
+    @GetMapping("/getAllArtistsCount")
+    public Result<Long> getAllArtistsCount(@RequestParam(required = false) Integer gender, @RequestParam(required = false) String area) {
+        return artistService.getAllArtistsCount(gender, area);
+    }
+
+    /**
+     * 获取所有歌手信息
+     *
+     * @param artistDTO 歌手搜索条件
+     * @return 结果
+     */
+    @PostMapping("/getAllArtists")
+    public Result<PageResult<Artist>> getAllArtists(@RequestBody ArtistDTO artistDTO) {
+        return artistService.getAllArtistsAndDetail(artistDTO);
+    }
+
+    /**
+     * 新增歌手
+     *
+     * @param artistAddDTO 歌手信息
+     * @return 结果
+     */
+    @PostMapping("/addArtist")
+    public Result addArtist(@RequestBody ArtistAddDTO artistAddDTO) {
+        return artistService.addArtist(artistAddDTO);
+    }
+
+    /**
+     * 更新歌手信息
+     *
+     * @param artistUpdateDTO 歌手信息
+     * @return 结果
+     */
+    @PutMapping("/updateArtist")
+    public Result updateArtist(@RequestBody ArtistUpdateDTO artistUpdateDTO) {
+        return artistService.updateArtist(artistUpdateDTO);
+    }
+
+    /**
+     * 更新歌手头像
+     *
+     * @param artistId 歌手id
+     * @param avatar   头像
+     * @return 结果
+     */
+    @PatchMapping("/updateArtistAvatar/{id}")
+    public Result updateArtistAvatar(@PathVariable("id") Long artistId, @RequestParam("avatar") MultipartFile avatar) {
+        String avatarUrl = minioService.uploadFile(avatar, "artists");  // 上传到 artists 目录
+        return artistService.updateArtistAvatar(artistId, avatarUrl);
+    }
+
+    /**
+     * 删除歌手
+     *
+     * @param artistId 歌手id
+     * @return 结果
+     */
+    @DeleteMapping("/deleteArtist/{id}")
+    public Result deleteArtist(@PathVariable("id") Long artistId) {
+        return artistService.deleteArtist(artistId);
+    }
+
+    /**
+     * 批量删除歌手
+     *
+     * @param artistIds 歌手id列表
+     * @return 结果
+     */
+    @DeleteMapping("/deleteArtists")
+    public Result deleteArtists(@RequestBody List<Long> artistIds) {
+        return artistService.deleteArtists(artistIds);
+    }
+
+    //**********************************************************************************************/
+
+    /**
+     * 获取所有歌曲的数量
+     *
+     * @param style 歌曲风格
+     * @return 歌曲数量
+     */
+    @GetMapping("/getAllSongsCount")
+    public Result<Long> getAllSongsCount(@RequestParam(required = false) String style) {
+        return songService.getAllSongsCount(style);
+    }
+
+    /**
+     * 获取所有歌手id和名称
+     *
+     * @return 结果
+     */
+    @GetMapping("/getAllArtistNames")
+    public Result<List<ArtistNameVO>> getAllArtistNames() {
+        return artistService.getAllArtistNames();
+    }
+
+    /**
+     * 根据歌手id获取其歌曲信息
+     *
+     * @param songDTO 歌曲搜索条件
+     * @return 结果
      */
     @PostMapping("/getAllSongsByArtist")
-    public Result<PageResult<SongAdminVO>> getAllSongsByArtist(@RequestBody SongAndArtistDTO songAndArtistDTO) {
-        return songService.getAllSongsByArtist(songAndArtistDTO);
+    public Result<PageResult<SongAdminVO>> getAllSongsByArtist(@RequestBody SongAndArtistDTO songDTO) {
+        return songService.getAllSongsByArtist(songDTO);
     }
+
+    /**
+     * 添加歌曲信息
+     *
+     * @param songAddDTO 歌曲信息
+     * @return 结果
+     */
+    @PostMapping("/addSong")
+    public Result addSong(@RequestBody SongAddDTO songAddDTO) {
+        return songService.addSong(songAddDTO);
+    }
+
+    /**
+     * 修改歌曲信息
+     *
+     * @param songUpdateDTO 歌曲信息
+     * @return 结果
+     */
+    @PutMapping("/updateSong")
+    public Result UpdateSong(@RequestBody SongUpdateDTO songUpdateDTO) {
+        return songService.updateSong(songUpdateDTO);
+    }
+
+    /**
+     * 更新歌曲封面
+     *
+     * @param songId 歌曲id
+     * @param cover  封面
+     * @return 结果
+     */
+    @PatchMapping("/updateSongCover/{id}")
+    public Result updateSongCover(@PathVariable("id") Long songId, @RequestParam("cover") MultipartFile cover) {
+        String coverUrl = minioService.uploadFile(cover, "songCovers");  // 上传到 songCovers 目录
+        return songService.updateSongCover(songId, coverUrl);
+    }
+
+    /**
+     * 更新歌曲音频
+     *
+     * @param songId 歌曲id
+     * @param audio  音频
+     * @return 结果
+     */
+    @PatchMapping("/updateSongAudio/{id}")
+    public Result updateSongAudio(@PathVariable("id") Long songId, @RequestParam("audio") MultipartFile audio, @RequestParam("duration") String duration) {
+        String audioUrl = minioService.uploadFile(audio, "songs");  // 上传到 songs 目录
+        return songService.updateSongAudio(songId, audioUrl, duration);
+    }
+
+    /**
+     * 删除歌曲
+     *
+     * @param songId 歌曲id
+     * @return 结果
+     */
+    @DeleteMapping("/deleteSong/{id}")
+    public Result deleteSong(@PathVariable("id") Long songId) {
+        return songService.deleteSong(songId);
+    }
+
+    /**
+     * 批量删除歌曲
+     *
+     * @param songIds 歌曲id列表
+     * @return 结果
+     */
+    @DeleteMapping("/deleteSongs")
+    public Result deleteSongs(@RequestBody List<Long> songIds) {
+        return songService.deleteSongs(songIds);
+    }
+
+    //**********************************************************************************************/
+
+
 }
 
