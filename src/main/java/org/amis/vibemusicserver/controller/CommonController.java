@@ -23,9 +23,6 @@ import java.util.stream.Collectors;
 public class CommonController {
 
     @Autowired
-    private UserMapper userMapper;
-
-    @Autowired
     private DeviceInfoService deviceInfoService;
 
     /**
