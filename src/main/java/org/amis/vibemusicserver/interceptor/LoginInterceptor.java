@@ -49,12 +49,14 @@ public class LoginInterceptor implements HandlerInterceptor {
      * @param message  错误消息
      * @throws IOException 写入响应时可能抛出IO异常
      */
-    public void sendErrorResponse(HttpServletResponse response, int status, String message) throws IOException {
-        response.setStatus(status);
+    public void sendErrorResponse(HttpServletResponse response, int code, String message) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // 设置HTTP状态码为401
         response.setCharacterEncoding("UTF-8"); // 设置字符编码为UTF-8
         response.setContentType("application/json;charset=UTF-8"); // 设置响应的Content-Type
         try {
-            response.getWriter().write(message);
+            // 构造标准的 JSON 错误响应格式
+            String jsonResponse = String.format("{\"code\": %d, \"message\": \"%s\", \"data\": null}", code, message);
+            response.getWriter().write(jsonResponse);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -155,7 +157,8 @@ public class LoginInterceptor implements HandlerInterceptor {
                 if (isDevOrLocal) {
                     log.warn("Token在Redis中不存在，已失效: {}", token);
                 }
-                throw new RuntimeException("Token not found in Redis");
+                sendErrorResponse(response, ResultCodeEnum.SESSION_EXPIRED.getCode(), MessageConstant.SESSION_EXPIRED); // 会话已过期
+                return false;
             }
 
             // 解析token获取用户信息
