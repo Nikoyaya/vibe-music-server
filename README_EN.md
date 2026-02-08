@@ -10,7 +10,7 @@
 
 ## Overview
 
-Vibe Music Server is a high-performance music service backend system built with Spring Boot 3, providing a complete backend solution for modern music streaming platforms. The system adopts microservices architecture design, supporting high-concurrency access and distributed deployment.
+Vibe Music Server is a high-performance music service backend system built with Spring Boot 3, providing a complete backend solution for modern music streaming platforms. 
 
 ## Core Features
 
