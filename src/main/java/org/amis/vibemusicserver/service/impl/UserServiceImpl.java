@@ -18,6 +18,7 @@ import org.amis.vibemusicserver.result.PageResult;
 import org.amis.vibemusicserver.result.Result;
 import org.amis.vibemusicserver.service.IUserService;
 import org.amis.vibemusicserver.utils.JwtUtil;
+import org.amis.vibemusicserver.utils.RsaUtil;
 import org.amis.vibemusicserver.utils.ThreadLocalUtil;
 import org.amis.vibemusicserver.utils.TypeConversionUtil;
 import org.springframework.beans.BeanUtils;
@@ -55,6 +56,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     @Autowired
     private MinioServiceImpl minioService;
+
+    @Autowired
+    private RsaUtil rsaUtil;
 
 
     /**
@@ -106,6 +110,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         // 删除Redis中的验证码
         stringRedisTemplate.delete("verificationCode:" + userRegisterDTO.getEmail());
 
+        // 解密前端传来的加密密码
+        String decryptedPassword;
+        try {
+            decryptedPassword = rsaUtil.decrypt(userRegisterDTO.getPassword());
+        } catch (Exception e) {
+            log.error("密码解密失败", e);
+            return Result.error("密码处理失败");
+        }
+
         // 检查用户名是否已存在
         User username = userMapper.selectOne(
                 new QueryWrapper<User>()
@@ -125,7 +138,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
 
         // 对密码进行MD5加密
-        String passwordMD5 = DigestUtils.md5DigestAsHex(userRegisterDTO.getPassword().getBytes());
+        String passwordMD5 = DigestUtils.md5DigestAsHex(decryptedPassword.getBytes());
 
         // 创建用户对象并设置相关属性
         User user = new User();
@@ -153,6 +166,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
      */
     @Override
     public Result login(UserLoginDTO userLoginDTO) {
+        // 解密前端传来的加密密码
+        String decryptedPassword;
+        try {
+            decryptedPassword = rsaUtil.decrypt(userLoginDTO.getPassword());
+        } catch (Exception e) {
+            log.error("密码解密失败", e);
+            return Result.error("密码处理失败");
+        }
+
         // 根据邮箱查询用户
         User user = userMapper.selectOne(
                 new QueryWrapper<User>()
@@ -171,7 +193,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
 
         // 验证密码（MD5加密比较）
-        boolean passwordEquals = DigestUtils.md5DigestAsHex(userLoginDTO.getPassword().getBytes()).equals(user.getPassword());
+        boolean passwordEquals = DigestUtils.md5DigestAsHex(decryptedPassword.getBytes()).equals(user.getPassword());
         if (passwordEquals) {
             // 单点登录控制：清理旧会话的所有token
             String userTokenKey = "user_token:" + user.getId();
@@ -399,6 +421,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
      */
     @Override
     public Result updateUserPassword(UserPasswordDTO userPasswordDTO, String token) {
+        // 解密前端传来的加密密码
+        String decryptedOldPassword, decryptedNewPassword, decryptedRepeatPassword;
+        try {
+            decryptedOldPassword = rsaUtil.decrypt(userPasswordDTO.getOldPassword());
+            decryptedNewPassword = rsaUtil.decrypt(userPasswordDTO.getNewPassword());
+            decryptedRepeatPassword = rsaUtil.decrypt(userPasswordDTO.getRepeatPassword());
+        } catch (Exception e) {
+            log.error("密码解密失败", e);
+            return Result.error("密码处理失败");
+        }
+
         // 解析token获取用户信息
         Map<String, Object> claims = JwtUtil.parseToken(token);
         Integer userIdInt = (Integer) claims.get(JwtClaimsConstant.USER_ID);
@@ -406,19 +439,19 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         User user = userMapper.selectById(userId);
 
         // 验证旧密码是否正确
-        if (!user.getPassword().equals(DigestUtils.md5DigestAsHex(userPasswordDTO.getOldPassword().getBytes()))) {
+        if (!user.getPassword().equals(DigestUtils.md5DigestAsHex(decryptedOldPassword.getBytes()))) {
             log.error(MessageConstant.OLD_PASSWORD_ERROR);
             return Result.error(MessageConstant.OLD_PASSWORD_ERROR);
         }
 
         // 验证新密码不能与旧密码相同
-        if (user.getPassword().equals(DigestUtils.md5DigestAsHex(userPasswordDTO.getNewPassword().getBytes()))) {
+        if (user.getPassword().equals(DigestUtils.md5DigestAsHex(decryptedNewPassword.getBytes()))) {
             log.error(MessageConstant.NEW_PASSWORD_ERROR);
             return Result.error(MessageConstant.NEW_PASSWORD_ERROR);
         }
 
         // 验证确认密码与新密码是否一致
-        if (!userPasswordDTO.getRepeatPassword().equals(userPasswordDTO.getNewPassword())) {
+        if (!decryptedRepeatPassword.equals(decryptedNewPassword)) {
             log.error(MessageConstant.PASSWORD_NOT_MATCH);
             return Result.error(MessageConstant.PASSWORD_NOT_MATCH);
         }
@@ -426,7 +459,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         // 更新用户密码
         if (userMapper.update(new User()
                         .setPassword(DigestUtils
-                                .md5DigestAsHex(userPasswordDTO.getNewPassword()
+                                .md5DigestAsHex(decryptedNewPassword
                                         .getBytes()))
                         .setUpdateTime(LocalDateTime.now()),
                 new QueryWrapper<User>().eq("id", userId)) == 0) {
@@ -451,6 +484,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         // 删除Redis中的验证码，避免重复使用
         stringRedisTemplate.delete("verificationCode:" + userResetPasswordDTO.getEmail());
 
+        // 解密前端传来的加密密码
+        String decryptedNewPassword, decryptedRepeatPassword;
+        try {
+            decryptedNewPassword = rsaUtil.decrypt(userResetPasswordDTO.getNewPassword());
+            decryptedRepeatPassword = rsaUtil.decrypt(userResetPasswordDTO.getRepeatPassword());
+        } catch (Exception e) {
+            log.error("密码解密失败", e);
+            return Result.error("密码处理失败");
+        }
+
         // 根据邮箱查询用户
         User user = userMapper.selectOne(new QueryWrapper<User>()
                 .eq("email", userResetPasswordDTO.getEmail()));
@@ -462,7 +505,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
 
         // 验证确认密码与新密码是否一致
-        if (!userResetPasswordDTO.getRepeatPassword().equals(userResetPasswordDTO.getNewPassword())) {
+        if (!decryptedRepeatPassword.equals(decryptedNewPassword)) {
             log.error(MessageConstant.PASSWORD_NOT_MATCH);
             return Result.error(MessageConstant.PASSWORD_NOT_MATCH);
         }
@@ -470,8 +513,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         // 更新用户密码，使用MD5加密
         if (userMapper.update(new User()
                         .setPassword(DigestUtils
-                                .md5DigestAsHex(userResetPasswordDTO
-                                        .getNewPassword().getBytes()))
+                                .md5DigestAsHex(decryptedNewPassword.getBytes()))
                         .setUpdateTime(LocalDateTime.now()),
                 new QueryWrapper<User>().eq("id", user.getId())) == 0) {
             log.error(MessageConstant.PASSWORD + MessageConstant.RESET + MessageConstant.FAILED);

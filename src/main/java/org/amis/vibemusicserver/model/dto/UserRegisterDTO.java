@@ -33,7 +33,6 @@ public class UserRegisterDTO implements Serializable {
      * 密码格式：8-18 位数字、字母、符号的任意两种组合
      */
     @NotBlank(message = MessageConstant.PASSWORD + MessageConstant.NOT_NULL)
-    @Pattern(regexp = "^(?![0-9]+$)(?![a-zA-Z]+$)[0-9A-Za-z\\W]{8,18}$", message = MessageConstant.PASSWORD + MessageConstant.FORMAT_ERROR)
     private String password;
 
     /**

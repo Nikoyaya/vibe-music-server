@@ -13,6 +13,7 @@ import org.amis.vibemusicserver.model.entity.Admin;
 import org.amis.vibemusicserver.result.Result;
 import org.amis.vibemusicserver.service.IAdminService;
 import org.amis.vibemusicserver.utils.JwtUtil;
+import org.amis.vibemusicserver.utils.RsaUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,8 @@ public class AdminServiceImpl extends ServiceImpl<AdminMapper, Admin> implements
     private AdminMapper adminMapper;
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
+    @Autowired
+    private RsaUtil rsaUtil;
 
     /**
      * 管理员注册
@@ -45,6 +48,16 @@ public class AdminServiceImpl extends ServiceImpl<AdminMapper, Admin> implements
     @Override
     public Result register(AdminDTO adminDTO) {
         log.info("开始注册管理员: {}", adminDTO.getUsername());
+
+        // 解密前端传来的加密密码
+        String decryptedPassword;
+        try {
+            decryptedPassword = rsaUtil.decrypt(adminDTO.getPassword());
+        } catch (Exception e) {
+            log.error("密码解密失败", e);
+            return Result.error("密码处理失败");
+        }
+
         // 根据用户名查询管理员，检查是否已存在
         Admin admin = adminMapper.selectOne(
                 new QueryWrapper<Admin>()
@@ -57,7 +70,7 @@ public class AdminServiceImpl extends ServiceImpl<AdminMapper, Admin> implements
         }
 
         // 对密码进行MD5加密处理
-        String passwordMD5 = DigestUtils.md5DigestAsHex(adminDTO.getPassword().getBytes());
+        String passwordMD5 = DigestUtils.md5DigestAsHex(decryptedPassword.getBytes());
         // 创建新的管理员对象并设置用户名和加密后的密码
         Admin adminRegister = new Admin();
         adminRegister.setUsername(adminDTO.getUsername()).setPassword(passwordMD5);
@@ -82,6 +95,15 @@ public class AdminServiceImpl extends ServiceImpl<AdminMapper, Admin> implements
      */
     @Override
     public Result login(AdminDTO adminDTO) {
+        // 解密前端传来的加密密码
+        String decryptedPassword;
+        try {
+            decryptedPassword = rsaUtil.decrypt(adminDTO.getPassword());
+        } catch (Exception e) {
+            log.error("密码解密失败", e);
+            return Result.error("密码处理失败");
+        }
+
         // 根据用户名查询管理员信息
         Admin admin = adminMapper.selectOne(
                 new QueryWrapper<Admin>()
@@ -94,7 +116,7 @@ public class AdminServiceImpl extends ServiceImpl<AdminMapper, Admin> implements
         }
 
         // 验证密码是否正确
-        if (DigestUtils.md5DigestAsHex(adminDTO.getPassword().getBytes()).equals(admin.getPassword())) {
+        if (DigestUtils.md5DigestAsHex(decryptedPassword.getBytes()).equals(admin.getPassword())) {
             // 单点登录控制：清理旧会话的所有token
             String adminTokenKey = "admin_token:" + admin.getAdminId();
             String oldRefreshToken = stringRedisTemplate.opsForValue().get(adminTokenKey);

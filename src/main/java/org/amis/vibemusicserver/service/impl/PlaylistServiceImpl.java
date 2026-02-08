@@ -28,6 +28,9 @@ import java.util.List;
 /**
  * @author : KwokChichung
  * @description : 歌单服务实现类
+ * <p>
+ * app自己有做缓存和数据库保存本地列表，这里提供的是云端播放列表
+ * <p/>
  * @createDate : 2026/1/28 19:28
  */
 @Service
@@ -37,6 +40,12 @@ public class PlaylistServiceImpl extends ServiceImpl<PlaylistMapper, Playlist> i
     @Autowired
     private PlaylistMapper playlistMapper;
 
+
+    /**
+     * 获取所有歌单
+     * @param playlistDTO 歌单查询条件封装类
+     * @return Result<PageResult<PlaylistVO>> 分页查询结果封装类
+     */
     @Override
     @Cacheable(key = "#playlistDTO.pageNum + '-' + #playlistDTO.pageSize + '-' + #playlistDTO.title + '-' + #playlistDTO.style")
     public Result<PageResult<PlaylistVO>> getAllPlaylists(PlaylistDTO playlistDTO) {
