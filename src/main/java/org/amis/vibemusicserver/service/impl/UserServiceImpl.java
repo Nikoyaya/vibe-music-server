@@ -254,9 +254,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             claims.put("linked_access_token", accessToken);
             // 2.在Redis中建立反向映射
             stringRedisTemplate.opsForValue().set(
-                "access_token:" + refreshToken,
-                accessToken,
-                15, TimeUnit.DAYS
+                    "access_token:" + refreshToken,
+                    accessToken,
+                    15, TimeUnit.DAYS
             );
 
             // 使用refresh_token控制单点登录
@@ -264,7 +264,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
             log.info("双Token存储到Redis完成，使用refresh_token控制单点登录");
             return Result.success(MessageConstant.LOGIN + MessageConstant.SUCCESS,
-                new TokenDTO(accessToken, refreshToken));
+                    new TokenDTO(accessToken, refreshToken));
         }
         // 密码错误返回错误信息
         return Result.error(MessageConstant.PASSWORD + MessageConstant.ERROR);
@@ -533,23 +533,37 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
      */
     @Override
     @CacheEvict(cacheNames = "userCache", allEntries = true)
-    public Result logout(String token) {
-        log.info("token: {}", token);
+    public Result logout(String refreshToken) {
+        log.info("refreshToken: {}", refreshToken);
 
         try {
+            // 1. 验证是否为refresh_token
+            if (!JwtUtil.isRefreshToken(refreshToken)) {
+                throw new RuntimeException(MessageConstant.TOKEN + MessageConstant.INVALID);
+            }
 
-            // 从Redis中删除token及SSO控制记录
-            Map<String, Object> claims = JwtUtil.parseToken(token);
+            // 2. 解析用户信息
+            Map<String, Object> claims = JwtUtil.parseToken(refreshToken);
             Long userId = ((Integer) claims.get(JwtClaimsConstant.USER_ID)).longValue();
-            stringRedisTemplate.delete("user_token:" + userId);
-            Boolean deleteResult = stringRedisTemplate.delete(token);
-            // 如果Redis删除成功，则记录成功日志并返回成功结果
+            // 3. 获取关联的accessToken
+            String accessToken = stringRedisTemplate.opsForValue().get("access_token:" + refreshToken);
+
+            // 4. 清理所有相关token
+            stringRedisTemplate.delete(refreshToken); // 删除refresh token本身
+            stringRedisTemplate.delete("access_token:" + refreshToken); // 删除映射关系
+            stringRedisTemplate.delete("user_token:" + userId); // 删除SSO控制记录
+
+            if (accessToken != null) {
+                stringRedisTemplate.delete(accessToken); // 删除access token本身
+            }
+
+            Boolean deleteResult = true; // 所有删除操作都成功
             if (deleteResult) {
-                log.info("用户登出成功: {}", token);
+                log.info("用户登出成功: {}", refreshToken);
                 return Result.success(MessageConstant.LOGOUT + MessageConstant.SUCCESS);
             } else {
                 // 如果Redis删除失败，则记录警告日志并返回失败结果
-                log.warn("用户登出失败: {}", token);
+                log.warn("用户登出失败: {}", refreshToken);
                 return Result.error(MessageConstant.LOGOUT + MessageConstant.FAILED);
             }
         } catch (Exception e) {
@@ -557,10 +571,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             return Result.error(MessageConstant.LOGOUT + MessageConstant.FAILED);
         }
     }
-
     /**
      * 注销账户
-     *
      * @return 结果
      */
     @Override

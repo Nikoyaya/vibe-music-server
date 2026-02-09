@@ -6,12 +6,12 @@ import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import lombok.extern.slf4j.Slf4j;
 import org.amis.vibemusicserver.constant.JwtClaimsConstant;
-import org.amis.vibemusicserver.enumeration.RoleEnum;
-import org.jetbrains.annotations.NotNull;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Date;
 import java.util.Map;
-
 /**
  * @author : KwokChichung
  * @description : JWT工具类
@@ -87,5 +87,23 @@ public class JwtUtil {
     public static Long getUserIdFromToken(String token) {
         Map<String, Object> claims = parseToken(token);
         return (Long) claims.get(JwtClaimsConstant.USER_ID);
+    }
+
+    /**
+     * 获取token的过期时间
+     */
+    public static LocalDateTime getExpirationFromToken(String token) {
+        try {
+            DecodedJWT jwt = JWT.require(Algorithm.HMAC256(SECRET_KEY))
+                    .build()
+                    .verify(token);
+            return LocalDateTime.ofInstant(
+                    jwt.getExpiresAt().toInstant(),
+                    ZoneId.systemDefault()
+            );
+        } catch (Exception e) {
+            log.error("获取token过期时间失败: {}", token, e);
+            throw new RuntimeException("无法解析token过期时间");
+        }
     }
 }

@@ -45,7 +45,7 @@ public class LoginInterceptor implements HandlerInterceptor {
      * 发送错误响应
      *
      * @param response HTTP响应对象
-     * @param status   HTTP状态码
+     * @param code   HTTP状态码
      * @param message  错误消息
      * @throws IOException 写入响应时可能抛出IO异常
      */
